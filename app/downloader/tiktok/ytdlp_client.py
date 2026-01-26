@@ -55,6 +55,20 @@ class TikTokVideoDownloader:
             # Get ffmpeg path from imageio-ffmpeg
             ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
+            # Common anti-block options
+            common_opts = {
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                },
+                'socket_timeout': 30,
+                'retries': 3,
+                'fragment_retries': 3,
+                'extractor_retries': 3,
+                'nocheckcertificate': True,
+            }
+
             # yt-dlp options
             if extract_audio:
                 # Download audio only
@@ -70,6 +84,7 @@ class TikTokVideoDownloader:
                         'preferredquality': '192',
                     }],
                     'progress_hooks': [progress_hook],
+                    **common_opts,
                 }
             else:
                 # Download video
@@ -81,6 +96,7 @@ class TikTokVideoDownloader:
                     'merge_output_format': 'mp4',
                     'ffmpeg_location': ffmpeg_path,
                     'progress_hooks': [progress_hook],
+                    **common_opts,
                 }
 
             logger.info(f"Downloading TikTok {'audio' if extract_audio else 'video'} using yt-dlp: {url}")

@@ -1,4 +1,5 @@
 import sys
+import os
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
@@ -8,6 +9,7 @@ from aiogram.enums import ParseMode
 from app.config.settings import settings
 from app.bot.handlers import router
 from app.bot.middlewares.throttling import ThrottlingMiddleware
+from app.bot.utils.metrics import start_metrics_server, set_bot_info
 
 # Custom formatter to include user_id when available
 # Custom formatter to include user_id when available
@@ -63,6 +65,11 @@ logging.basicConfig(
 
 async def main():
     """Start the bot."""
+    # Start metrics server
+    metrics_port = int(os.getenv('METRICS_PORT', 8000))
+    start_metrics_server(metrics_port)
+    set_bot_info(version="1.0.0", environment=os.getenv('ENVIRONMENT', 'development'))
+
     # Create bot
     bot = Bot(
         token=settings.BOT_TOKEN,
@@ -79,6 +86,7 @@ async def main():
 
     # Start bot
     logger.info("Bot is starting...")
+    logger.info(f"Metrics available at http://localhost:{metrics_port}/metrics")
     await dp.start_polling(bot)
 
 

@@ -10,6 +10,7 @@ from app.bot.keyboards.youtube_kb import get_quality_keyboard_with_sizes
 from app.bot.states.download_states import YouTubeState
 from app.bot.utils.validators import is_youtube_url
 from app.bot.utils.logger import user_logger
+from app.bot.utils.metrics import record_request, record_error, record_processing_time
 from . import youtube_dl
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
     """Handle YouTube URL."""
     user_id = message.from_user.id
     url = message.text.strip()
+    start_time = time.time()
 
     # Log user action
     user_logger.log_user_action(
@@ -209,12 +211,24 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             f"Message ID: {options_msg.message_id}"
         )
 
+        # Record metrics
+        duration = time.time() - start_time
+        record_request("youtube_url_handler", True)
+        record_processing_time("youtube_url_handler", duration)
+
     except Exception as e:
         user_logger.log_user_error(
             "youtube_url_handler",
             user_id,
             f"YouTube handler error: {str(e)}"
         )
+
+        # Record error metrics
+        duration = time.time() - start_time
+        record_error("youtube", type(e).__name__)
+        record_request("youtube_url_handler", False)
+        record_processing_time("youtube_url_handler", duration)
+
         try:
             await status_msg.edit_text(
                 "❌ Unexpected error. Please try again."

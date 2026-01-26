@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, FSInputFile
@@ -8,6 +9,7 @@ from app.config.settings import settings
 from app.bot.utils.progress import create_video_progress_bar
 from app.bot.states.download_states import YouTubeState
 from app.bot.utils.logger import user_logger
+from app.bot.utils.metrics import record_download, record_request, record_error, record_processing_time
 from . import youtube_dl
 
 logger = logging.getLogger(__name__)
@@ -21,6 +23,7 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
     user_id = callback.from_user.id
+    start_time = time.time()
 
     try:
         # Get data from state
@@ -142,6 +145,12 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
         except:
             pass
 
+        # Record metrics
+        duration = time.time() - start_time
+        record_download("youtube", "video", True, duration, file_size)
+        record_request("youtube_quality_callback", True)
+        record_processing_time("youtube_quality_callback", duration)
+
         await state.clear()
 
     except Exception as e:
@@ -150,7 +159,20 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
             user_id,
             f"YouTube download error: {str(e)}"
         )
-        await callback.message.edit_text("❌ Download failed. Please try again.")
+
+        # Record error metrics
+        duration = time.time() - start_time
+        record_error("youtube", type(e).__name__)
+        record_request("youtube_quality_callback", False)
+        record_processing_time("youtube_quality_callback", duration)
+
+        try:
+            await callback.message.edit_caption(caption="❌ Download failed. Please try again.")
+        except:
+            try:
+                await callback.message.edit_text("❌ Download failed. Please try again.")
+            except:
+                await callback.message.answer("❌ Download failed. Please try again.")
         await state.clear()
 
 
@@ -160,6 +182,7 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
     user_id = callback.from_user.id
+    start_time = time.time()
 
     try:
         # Get data from state
@@ -270,6 +293,12 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
         except:
             pass
 
+        # Record metrics
+        duration = time.time() - start_time
+        record_download("youtube", "audio", True, duration, file_size)
+        record_request("youtube_audio_callback", True)
+        record_processing_time("youtube_audio_callback", duration)
+
         await state.clear()
 
     except Exception as e:
@@ -278,5 +307,18 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
             user_id,
             f"YouTube audio download error: {str(e)}"
         )
-        await callback.message.edit_text("❌ Audio download failed. Please try again.")
+
+        # Record error metrics
+        duration = time.time() - start_time
+        record_error("youtube", type(e).__name__)
+        record_request("youtube_audio_callback", False)
+        record_processing_time("youtube_audio_callback", duration)
+
+        try:
+            await callback.message.edit_caption(caption="❌ Audio download failed. Please try again.")
+        except:
+            try:
+                await callback.message.edit_text("❌ Audio download failed. Please try again.")
+            except:
+                await callback.message.answer("❌ Audio download failed. Please try again.")
         await state.clear()

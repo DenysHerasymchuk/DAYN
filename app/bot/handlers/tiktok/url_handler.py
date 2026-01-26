@@ -13,6 +13,7 @@ from app.bot.keyboards.tiktok_kb import get_audio_button
 from app.bot.utils.validators import is_tiktok_url
 from app.bot.utils.progress import create_video_progress_bar
 from app.bot.utils.logger import user_logger
+from app.bot.utils.metrics import record_download, record_request, record_error, record_processing_time
 from .photo_handler import send_tiktok_photos, handle_single_photo
 from . import tiktok_dl
 
@@ -58,6 +59,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
     """Handle TikTok URL - instantly download and send."""
     user_id = message.from_user.id
     url = message.text.strip()
+    start_time = time.time()
 
     # Log user action
     user_logger.log_user_action(
@@ -217,6 +219,12 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
         except:
             pass
 
+        # Record metrics
+        duration = time.time() - start_time
+        record_download("tiktok", content_type, True, duration, total_size)
+        record_request("tiktok_url_handler", True)
+        record_processing_time("tiktok_url_handler", duration)
+
     except Exception as e:
         # Log error
         user_logger.log_user_error(
@@ -224,6 +232,13 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             user_id,
             f"TikTok download error: {str(e)}"
         )
+
+        # Record error metrics
+        duration = time.time() - start_time
+        record_error("tiktok", type(e).__name__)
+        record_request("tiktok_url_handler", False)
+        record_processing_time("tiktok_url_handler", duration)
+
         try:
             await status_msg.edit_text(
                 f"❌ Error downloading TikTok content.\n"
