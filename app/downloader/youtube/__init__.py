@@ -10,12 +10,11 @@ logger = logging.getLogger(__name__)
 class YouTubeDownloader:
     """Facade that combines all YouTube downloader components."""
 
-    def __init__(self, temp_dir: str = "temp", max_file_size: int = 50 * 1024 * 1024, is_premium: bool = False):
+    def __init__(self, temp_dir: str = "temp", max_file_size: int = 50 * 1024 * 1024):
         self.temp_dir = temp_dir
         self.max_file_size = max_file_size
-        self.is_premium = is_premium
         os.makedirs(temp_dir, exist_ok=True)
-        self.info_extractor = YouTubeInfoExtractor(max_file_size, is_premium)
+        self.info_extractor = YouTubeInfoExtractor(max_file_size)
         self.video_downloader = YouTubeVideoDownloader(temp_dir)
         self.audio_downloader = YouTubeAudioDownloader(temp_dir)
 

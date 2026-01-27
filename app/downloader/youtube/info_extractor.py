@@ -9,9 +9,8 @@ logger = logging.getLogger(__name__)
 class YouTubeInfoExtractor:
     """Extract video information from YouTube."""
 
-    def __init__(self, max_file_size: int = 50 * 1024 * 1024, is_premium: bool = False):
+    def __init__(self, max_file_size: int = 50 * 1024 * 1024):
         self.max_file_size = max_file_size
-        self.is_premium = is_premium
 
     async def get_video_info(self, url: str) -> Dict:
         """Get YouTube video info using yt-dlp."""
@@ -91,15 +90,13 @@ class YouTubeInfoExtractor:
                     estimated_video_size = self._estimate_file_size(height, duration)
                     total_size = estimated_video_size + audio_size
 
-                    # Premium: show all, Regular: filter by size
-                    if self.is_premium or total_size < self.max_file_size:
+                    if total_size < self.max_file_size:
                         size_mb = total_size / (1024 * 1024)
                         qualities_with_size.append((height, total_size, f"~{size_mb:.1f} MB", True))
                 else:
                     total_size = video_size + audio_size
 
-                    # Premium: show all, Regular: filter by size
-                    if self.is_premium or total_size < self.max_file_size:
+                    if total_size < self.max_file_size:
                         size_mb = total_size / (1024 * 1024)
                         qualities_with_size.append((height, total_size, f"{size_mb:.1f} MB", False))
 
@@ -109,10 +106,9 @@ class YouTubeInfoExtractor:
             # Calculate audio-only size
             audio_only_size = best_audio_size
             audio_only_size_mb = audio_only_size / (1024 * 1024)
-            audio_under_limit = self.is_premium or audio_only_size < self.max_file_size
+            audio_under_limit = audio_only_size < self.max_file_size
 
-            mode = "Premium" if self.is_premium else f"Regular (<{self.max_file_size / (1024 * 1024):.0f}MB)"
-            logger.info(f"{mode}: {len(qualities_with_size)} qualities available")
+            logger.info(f"Max {self.max_file_size / (1024 * 1024):.0f}MB: {len(qualities_with_size)} qualities available")
 
             return {
                 'title': info.get('title', 'YouTube Video')[:100],

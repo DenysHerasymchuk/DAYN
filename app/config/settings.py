@@ -12,14 +12,8 @@ class Settings:
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN is required in .env file")
 
-    # Premium mode
-    PREMIUM = os.getenv("PREMIUM", "False").lower() in ('true', '1', 'yes')
-
-    # File size limits
-    if PREMIUM:
-        MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB for premium
-    else:
-        MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB for regular users
+    # File size limit (default 50MB - Telegram bot limit)
+    MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", 50 * 1024 * 1024))
 
     # Directories
     TEMP_DIR = "temp"

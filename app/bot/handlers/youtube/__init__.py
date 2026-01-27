@@ -4,8 +4,7 @@ from app.downloader.youtube import YouTubeDownloader
 
 # Shared downloader instance
 youtube_dl = YouTubeDownloader(
-    max_file_size=settings.MAX_FILE_SIZE,
-    is_premium=settings.PREMIUM
+    max_file_size=settings.MAX_FILE_SIZE
 )
 
 from .url_handler import router as url_router
