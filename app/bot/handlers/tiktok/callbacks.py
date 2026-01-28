@@ -1,14 +1,15 @@
-import os
 import logging
+import os
 import time
-from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile
-from aiogram.fsm.context import FSMContext
 
-from app.config.settings import settings
-from app.bot.keyboards.tiktok_kb import get_audio_button
-from app.bot.utils.progress import create_video_progress_bar
+from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, FSInputFile
+
 from app.bot.utils.logger import user_logger
+from app.bot.utils.progress import create_video_progress_bar
+from app.config.settings import settings
+
 from . import tiktok_dl
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMConte
             # Remove the audio button
             try:
                 await callback.message.edit_reply_markup(reply_markup=None)
-            except:
+            except Exception:
                 pass
             return
 
@@ -65,7 +66,7 @@ async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMConte
                     )
                     await state.clear()
                     return
-            except:
+            except Exception:
                 pass
 
             await callback.message.edit_reply_markup(reply_markup=None)
@@ -89,7 +90,7 @@ async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMConte
             try:
                 progress_bar = create_video_progress_bar(percent)
                 await status_msg.edit_text(f"🎵 Extracting audio... {int(percent)}%\n{progress_bar}")
-            except:
+            except Exception:
                 pass
 
         # Log download start
@@ -153,7 +154,7 @@ async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMConte
         # Remove the audio button from original message
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
-        except:
+        except Exception:
             pass
 
     except Exception as e:
@@ -164,5 +165,5 @@ async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMConte
         )
         try:
             await callback.message.reply("❌ Audio extraction failed. Please try again.")
-        except:
+        except Exception:
             pass

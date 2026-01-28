@@ -1,6 +1,6 @@
-from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery
 
 router = Router()
 
@@ -13,5 +13,5 @@ async def cancel_callback(callback: CallbackQuery, state: FSMContext):
 
     try:
         await callback.message.edit_text("❌ Operation cancelled.")
-    except:
+    except Exception:
         await callback.message.answer("❌ Operation cancelled.")

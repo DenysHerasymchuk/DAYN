@@ -1,9 +1,10 @@
-import os
 import logging
+import os
+
+from .audio_extractor import TikTokAudioExtractor
 from .base_client import TikTokBaseClient
 from .musicaldown import TikTokPhotoDownloader
 from .ytdlp_client import TikTokVideoDownloader
-from .audio_extractor import TikTokAudioExtractor
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,9 @@
-import os
 import logging
+import os
+
+from .audio_downloader import YouTubeAudioDownloader
 from .info_extractor import YouTubeInfoExtractor
 from .video_downloader import YouTubeVideoDownloader
-from .audio_downloader import YouTubeAudioDownloader
 
 logger = logging.getLogger(__name__)
 

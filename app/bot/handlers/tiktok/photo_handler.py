@@ -2,12 +2,12 @@
 Photo-specific handler for TikTok photo posts.
 This contains logic extracted from the main TikTok handler.
 """
-import os
 import logging
+import os
 
 from aiogram import Router
-from aiogram.types import Message, InputMediaPhoto, FSInputFile
 from aiogram.fsm.context import FSMContext
+from aiogram.types import FSInputFile, InputMediaPhoto, Message
 
 from app.bot.keyboards.tiktok_kb import get_audio_button
 from app.bot.utils.logger import user_logger
