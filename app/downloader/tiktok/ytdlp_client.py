@@ -1,9 +1,10 @@
-import os
-import logging
 import asyncio
-import yt_dlp
+import logging
+import os
+from typing import Callable, Optional
+
 import imageio_ffmpeg
-from typing import Optional, Callable
+import yt_dlp
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class TikTokVideoDownloader:
                     percent_str = d.get('_percent_str', '0%').strip('%')
                     try:
                         progress_state['percent'] = float(percent_str)
-                    except:
+                    except ValueError:
                         pass
                 elif d['status'] == 'finished':
                     progress_state['downloading'] = False
@@ -158,7 +159,7 @@ class TikTokVideoDownloader:
                         logger.info(f"Downloaded TikTok video: {file_path}")
                         return file_path
 
-            raise Exception(f"Downloaded file not found for TikTok")
+            raise Exception("Downloaded file not found for TikTok")
 
         except Exception as e:
             logger.error(f"yt-dlp TikTok download error: {e}")

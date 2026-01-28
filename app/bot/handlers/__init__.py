@@ -1,7 +1,8 @@
 from aiogram import Router
+
 from .common import router as common_router
-from .youtube import router as youtube_router
 from .tiktok import router as tiktok_router
+from .youtube import router as youtube_router
 
 # Create main router and include all sub-routers
 router = Router()

@@ -1,15 +1,14 @@
 """
 File management utilities for the application.
 """
-import os
 import asyncio
 import logging
+import os
 import subprocess
-import shutil
-from pathlib import Path
-from typing import Optional, List, Tuple
-import uuid
 import time
+import uuid
+from pathlib import Path
+from typing import List, Optional, Tuple
 
 from app.config.settings import settings
 
@@ -164,7 +163,7 @@ class FileManager:
         total_size = 0
         file_count = 0
 
-        for dirpath, dirnames, filenames in os.walk(self.temp_dir):
+        for dirpath, _dirnames, filenames in os.walk(self.temp_dir):
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
                 total_size += os.path.getsize(filepath)
@@ -183,7 +182,7 @@ class FileManager:
         max_age_seconds = max_age_hours * 3600
         deleted = 0
 
-        for dirpath, dirnames, filenames in os.walk(self.temp_dir):
+        for dirpath, _dirnames, filenames in os.walk(self.temp_dir):
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
                 try:

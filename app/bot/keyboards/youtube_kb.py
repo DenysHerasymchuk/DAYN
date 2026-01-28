@@ -14,7 +14,7 @@ def get_quality_keyboard_with_sizes(
     reversed_qualities = list(reversed(qualities_with_size))
 
     # Add quality buttons with file sizes (2 per row)
-    for height, size_bytes, size_str, estimated in reversed_qualities:
+    for height, _size_bytes, size_str, _estimated in reversed_qualities:
         display_text = f"{height}p - {size_str}"
         builder.button(
             text=display_text,

@@ -1,8 +1,8 @@
-import asyncio
 from datetime import datetime, timedelta
+from typing import Any, Awaitable, Callable, Dict
+
 from aiogram import BaseMiddleware
-from aiogram.types import Message, CallbackQuery
-from typing import Dict, Any, Callable, Awaitable
+from aiogram.types import CallbackQuery, Message
 
 
 class ThrottlingMiddleware(BaseMiddleware):

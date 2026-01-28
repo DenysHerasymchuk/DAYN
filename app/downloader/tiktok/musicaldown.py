@@ -1,8 +1,9 @@
+import logging
 import os
 import re
-import logging
+from typing import Callable, List, Optional
+
 import aiohttp
-from typing import List, Optional, Callable
 
 logger = logging.getLogger(__name__)
 

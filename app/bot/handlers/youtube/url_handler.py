@@ -1,16 +1,18 @@
+import asyncio
 import logging
 import time
-import asyncio
-from aiogram import Router
-from aiogram.types import Message, URLInputFile
-from aiogram.fsm.context import FSMContext
 
-from app.config.settings import settings
+from aiogram import Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, URLInputFile
+
 from app.bot.keyboards.youtube_kb import get_quality_keyboard_with_sizes
 from app.bot.states.download_states import YouTubeState
-from app.bot.utils.validators import is_youtube_url
 from app.bot.utils.logger import user_logger
-from app.bot.utils.metrics import record_request, record_error, record_processing_time
+from app.bot.utils.metrics import record_error, record_processing_time, record_request
+from app.bot.utils.validators import is_youtube_url
+from app.config.settings import settings
+
 from . import youtube_dl
 
 logger = logging.getLogger(__name__)
@@ -198,7 +200,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
         # Delete status message
         try:
             await status_msg.delete()
-        except:
+        except Exception:
             pass
 
         logger.info(f"YouTube options sent for: {title[:50]}")
@@ -233,7 +235,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             await status_msg.edit_text(
                 "❌ Unexpected error. Please try again."
             )
-        except:
+        except Exception:
             await message.reply(
                 "❌ Unexpected error. Please try again."
             )

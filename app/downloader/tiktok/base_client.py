@@ -1,7 +1,8 @@
-import re
 import logging
-import aiohttp
+import re
 from typing import Dict
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,10 @@
-import os
-import logging
 import asyncio
-import yt_dlp
+import logging
+import os
+from typing import Callable, Optional
+
 import imageio_ffmpeg
-from typing import Optional, Callable
+import yt_dlp
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class YouTubeVideoDownloader:
                     percent_str = d.get('_percent_str', '0%').strip('%')
                     try:
                         progress_state['percent'] = float(percent_str)
-                    except:
+                    except ValueError:
                         pass
                 elif d['status'] == 'finished':
                     progress_state['downloading'] = False

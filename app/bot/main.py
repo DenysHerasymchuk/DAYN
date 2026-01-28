@@ -1,17 +1,18 @@
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from app.config.settings import settings
 from app.bot.handlers import router
 from app.bot.middlewares.throttling import ThrottlingMiddleware
-from app.bot.utils.metrics import start_metrics_server, set_bot_info
+from app.bot.utils.metrics import set_bot_info, start_metrics_server
+from app.config.settings import settings
 
-# Custom formatter to include user_id when available
+
 # Custom formatter to include user_id when available
 class UserAwareFormatter(logging.Formatter):
     def format(self, record):

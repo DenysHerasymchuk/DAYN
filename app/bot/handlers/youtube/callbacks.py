@@ -1,15 +1,22 @@
+import logging
 import os
 import time
-import logging
-from aiogram import Router, F
-from aiogram.types import CallbackQuery, FSInputFile
-from aiogram.fsm.context import FSMContext
 
-from app.config.settings import settings
-from app.bot.utils.progress import create_video_progress_bar
+from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, FSInputFile
+
 from app.bot.states.download_states import YouTubeState
 from app.bot.utils.logger import user_logger
-from app.bot.utils.metrics import record_download, record_request, record_error, record_processing_time
+from app.bot.utils.metrics import (
+    record_download,
+    record_error,
+    record_processing_time,
+    record_request,
+)
+from app.bot.utils.progress import create_video_progress_bar
+from app.config.settings import settings
+
 from . import youtube_dl
 
 logger = logging.getLogger(__name__)
@@ -59,7 +66,7 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
                 caption=f"⬇️ Downloading {quality}p video...\n{progress_bar}",
                 parse_mode="HTML"
             )
-        except:
+        except Exception:
             await callback.message.edit_text(
                 f"⬇️ Downloading {quality}p video...\n{progress_bar}"
             )
@@ -73,11 +80,11 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
                         caption=f"⬇️ Downloading {quality}p video...\n{progress_bar}",
                         parse_mode="HTML"
                     )
-                except:
+                except Exception:
                     await callback.message.edit_text(
                         f"⬇️ Downloading {quality}p video...\n{progress_bar}"
                     )
-            except:
+            except Exception:
                 pass
 
         # Log download start
@@ -142,7 +149,7 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
         # Delete options message
         try:
             await callback.message.delete()
-        except:
+        except Exception:
             pass
 
         # Record metrics
@@ -168,10 +175,10 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
 
         try:
             await callback.message.edit_caption(caption="❌ Download failed. Please try again.")
-        except:
+        except Exception:
             try:
                 await callback.message.edit_text("❌ Download failed. Please try again.")
-            except:
+            except Exception:
                 await callback.message.answer("❌ Download failed. Please try again.")
         await state.clear()
 
@@ -215,7 +222,7 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
                 caption=f"🎵 Downloading audio...\n{progress_bar}",
                 parse_mode="HTML"
             )
-        except:
+        except Exception:
             await callback.message.edit_text(f"🎵 Downloading audio...\n{progress_bar}")
 
         # Progress callback
@@ -227,9 +234,9 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
                         caption=f"🎵 Downloading audio...\n{progress_bar}",
                         parse_mode="HTML"
                     )
-                except:
+                except Exception:
                     await callback.message.edit_text(f"🎵 Downloading audio...\n{progress_bar}")
-            except:
+            except Exception:
                 pass
 
         # Log download start
@@ -290,7 +297,7 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
         # Delete options message
         try:
             await callback.message.delete()
-        except:
+        except Exception:
             pass
 
         # Record metrics
@@ -316,9 +323,9 @@ async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
 
         try:
             await callback.message.edit_caption(caption="❌ Audio download failed. Please try again.")
-        except:
+        except Exception:
             try:
                 await callback.message.edit_text("❌ Audio download failed. Please try again.")
-            except:
+            except Exception:
                 await callback.message.answer("❌ Audio download failed. Please try again.")
         await state.clear()

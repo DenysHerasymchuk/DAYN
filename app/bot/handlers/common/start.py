@@ -1,9 +1,9 @@
-from aiogram import Router, F
+from aiogram import Router
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
-from aiogram.filters import CommandStart, Command
 
-from app.config.settings import settings
 from app.config.constants import Emojis, Messages
+from app.config.settings import settings
 
 router = Router()
 

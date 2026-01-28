@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +51,13 @@ class TikTokAudioExtractor:
     async def _download_audio_alternative(self, url: str, progress_callback: Optional[Callable] = None) -> str:
         """Alternative method to extract audio if yt-dlp fails."""
         try:
-            from .base_client import TikTokBaseClient
-            from .ytdlp_client import TikTokVideoDownloader
-            import os
             import asyncio
+            import os
+
             import imageio_ffmpeg
 
-            base_client = TikTokBaseClient(self.temp_dir)
+            from .ytdlp_client import TikTokVideoDownloader
+
             video_downloader = TikTokVideoDownloader(self.temp_dir)
 
             # Try to extract video first, then extract audio from it
@@ -108,4 +108,4 @@ class TikTokAudioExtractor:
 
         except Exception as e:
             logger.error(f"Alternative audio extraction error: {e}")
-            raise Exception(f"Audio extraction failed: {str(e)}")
+            raise Exception(f"Audio extraction failed: {str(e)}") from e

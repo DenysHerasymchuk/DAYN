@@ -1,21 +1,27 @@
-import os
-import logging
-import time
 import asyncio
+import logging
+import os
+import time
 
 from aiogram import Router
-from aiogram.types import Message, FSInputFile
 from aiogram.fsm.context import FSMContext
+from aiogram.types import FSInputFile, Message
 
-from app.config.settings import settings
-from app.bot.states.download_states import TikTokState
 from app.bot.keyboards.tiktok_kb import get_audio_button
-from app.bot.utils.validators import is_tiktok_url
-from app.bot.utils.progress import create_video_progress_bar
+from app.bot.states.download_states import TikTokState
 from app.bot.utils.logger import user_logger
-from app.bot.utils.metrics import record_download, record_request, record_error, record_processing_time
-from .photo_handler import send_tiktok_photos, handle_single_photo
+from app.bot.utils.metrics import (
+    record_download,
+    record_error,
+    record_processing_time,
+    record_request,
+)
+from app.bot.utils.progress import create_video_progress_bar
+from app.bot.utils.validators import is_tiktok_url
+from app.config.settings import settings
+
 from . import tiktok_dl
+from .photo_handler import handle_single_photo, send_tiktok_photos
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -110,7 +116,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
                 await status_msg.edit_text(
                     f"⬇️ Downloading... {int(percent)}%\n{progress_bar}"
                 )
-            except:
+            except Exception:
                 pass
 
         # Download content
@@ -146,7 +152,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
                 await status_msg.edit_text("📤 Sending photo...")
 
                 # Use photo handler
-                photo_msg = await handle_single_photo(
+                await handle_single_photo(
                     message=message,
                     image_path=images[0],
                     author_link=author_link,
@@ -216,7 +222,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
         # Delete status message
         try:
             await status_msg.delete()
-        except:
+        except Exception:
             pass
 
         # Record metrics
@@ -241,12 +247,12 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
 
         try:
             await status_msg.edit_text(
-                f"❌ Error downloading TikTok content.\n"
-                f"Please check the URL and try again."
+                "❌ Error downloading TikTok content.\n"
+                "Please check the URL and try again."
             )
-        except:
+        except Exception:
             await message.reply(
-                f"❌ Error downloading TikTok content.\n"
-                f"Please check the URL and try again."
+                "❌ Error downloading TikTok content.\n"
+                "Please check the URL and try again."
             )
         await state.clear()

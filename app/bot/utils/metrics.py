@@ -2,7 +2,8 @@
 Prometheus metrics for the bot.
 """
 import logging
-from prometheus_client import Counter, Histogram, Gauge, Info, start_http_server
+
+from prometheus_client import Counter, Gauge, Histogram, Info, start_http_server
 
 logger = logging.getLogger(__name__)
 
