@@ -19,7 +19,7 @@ from app.bot.utils.metrics import (
     record_processing_time,
     record_request,
 )
-from app.config.constants import BYTES_PER_MB, Emojis, TelegramLimits, Timeouts
+from app.config.constants import BYTES_PER_MB, CallbackData, Emojis, TelegramLimits, Timeouts
 from app.config.settings import settings
 
 from . import tiktok_dl
@@ -114,7 +114,7 @@ async def send_tiktok_audio(
     )
 
 
-@router.callback_query(F.data == "tiktok_extract_audio")
+@router.callback_query(F.data == CallbackData.TIKTOK_EXTRACT_AUDIO)
 async def tiktok_extract_audio_callback(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
     start_time = time.time()

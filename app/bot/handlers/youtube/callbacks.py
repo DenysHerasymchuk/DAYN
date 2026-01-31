@@ -23,7 +23,7 @@ from app.bot.utils.metrics import (
     record_processing_time,
     record_request,
 )
-from app.config.constants import BYTES_PER_MB, Emojis, TelegramLimits
+from app.config.constants import BYTES_PER_MB, CallbackData, Emojis, TelegramLimits
 from app.config.settings import settings
 
 from . import youtube_dl
@@ -213,7 +213,7 @@ async def process_download(ctx: DownloadContext) -> None:
         await ctx.state.clear()
 
 
-@router.callback_query(F.data.startswith("quality_"), YouTubeState.selecting_quality)
+@router.callback_query(F.data.startswith(CallbackData.QUALITY_PREFIX), YouTubeState.selecting_quality)
 async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
@@ -222,7 +222,7 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
         return
 
     url, video_info = session
-    quality = int(callback.data.split('_')[1])
+    quality = CallbackData.parse_quality(callback.data)
 
     ctx = DownloadContext(
         callback=callback,
@@ -237,7 +237,7 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
     await process_download(ctx)
 
 
-@router.callback_query(F.data == "format_audio", YouTubeState.selecting_quality)
+@router.callback_query(F.data == CallbackData.FORMAT_AUDIO, YouTubeState.selecting_quality)
 async def youtube_audio_callback(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 

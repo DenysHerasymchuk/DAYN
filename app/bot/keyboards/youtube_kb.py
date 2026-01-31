@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.config.constants import Emojis
+from app.config.constants import CallbackData, Emojis
 
 
 def get_quality_keyboard_with_sizes(
@@ -17,13 +17,13 @@ def get_quality_keyboard_with_sizes(
         display_text = f"{height}p - {size_str}"
         builder.button(
             text=display_text,
-            callback_data=f"quality_{height}"
+            callback_data=CallbackData.quality(height)
         )
 
     num_qualities = len(reversed_qualities)
 
     if audio_under_limit:
-        builder.button(text=f"{Emojis.MUSIC} MP3 - {audio_size_str}", callback_data="format_audio")
+        builder.button(text=f"{Emojis.MUSIC} MP3 - {audio_size_str}", callback_data=CallbackData.FORMAT_AUDIO)
 
     # Adjust layout
     row_pattern = [2] * (num_qualities // 2)

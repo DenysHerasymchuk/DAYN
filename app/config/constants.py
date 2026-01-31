@@ -29,6 +29,34 @@ class ProgressPercent:
 BYTES_PER_MB = 1024 * 1024
 
 
+class CallbackData:
+    """Typed callback data constants to avoid stringly-typed callbacks."""
+    # YouTube
+    QUALITY_PREFIX = "quality_"
+    FORMAT_AUDIO = "format_audio"
+
+    # TikTok
+    TIKTOK_EXTRACT_AUDIO = "tiktok_extract_audio"
+
+    # Common
+    CANCEL = "cancel"
+
+    @staticmethod
+    def quality(height: int) -> str:
+        """Generate quality callback data."""
+        return f"{CallbackData.QUALITY_PREFIX}{height}"
+
+    @staticmethod
+    def parse_quality(data: str) -> int | None:
+        """Parse quality from callback data."""
+        if data.startswith(CallbackData.QUALITY_PREFIX):
+            try:
+                return int(data[len(CallbackData.QUALITY_PREFIX):])
+            except ValueError:
+                return None
+        return None
+
+
 class Emojis:
     VIDEO = "🎬"
     MUSIC = "🎵"

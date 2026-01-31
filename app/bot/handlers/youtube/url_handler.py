@@ -9,9 +9,14 @@ from aiogram.types import Message, URLInputFile
 from app.bot.keyboards.youtube_kb import get_quality_keyboard_with_sizes
 from app.bot.states.download_states import YouTubeState
 from app.bot.utils.logger import user_logger
+from app.bot.utils.message_helpers import (
+    safe_delete_message,
+    safe_edit_message,
+    safe_send_error,
+)
 from app.bot.utils.metrics import record_error, record_processing_time, record_request
 from app.bot.utils.validators import is_youtube_url
-from app.config.constants import Emojis
+from app.config.constants import BYTES_PER_MB, Emojis
 from app.config.settings import settings
 
 from . import youtube_dl
@@ -19,22 +24,51 @@ from . import youtube_dl
 logger = logging.getLogger(__name__)
 router = Router()
 
+HANDLER_NAME = "youtube_url_handler"
+
 
 def youtube_url_filter(message: Message) -> bool:
     """Filter for YouTube URLs only."""
     return bool(message.text and is_youtube_url(message.text.strip()))
 
 
-async def send_initial_status(message: Message) -> Message:
-    return await message.reply(f"{Emojis.HOURGLASS} Processing YouTube link...")
-
-
-async def update_status(status_msg: Message, text: str):
-    """Update status message with error handling."""
+async def load_thumbnail(url: str) -> URLInputFile | None:
+    """Attempt to load thumbnail, returns None on failure."""
     try:
-        await status_msg.edit_text(text)
+        return URLInputFile(url, filename="thumbnail.jpg")
     except Exception as e:
-        logger.debug(f"Failed to update status: {e}")
+        logger.warning(f"Could not load thumbnail: {e}")
+        return None
+
+
+async def send_quality_options(
+    message: Message,
+    caption: str,
+    keyboard,
+    thumbnail_file: URLInputFile | None
+) -> Message:
+    """Send quality selection options with optional thumbnail."""
+    try:
+        if thumbnail_file:
+            return await message.reply_photo(
+                photo=thumbnail_file,
+                caption=caption,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+        else:
+            return await message.reply(
+                caption,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        logger.error(f"Failed to send options with thumbnail: {e}")
+        return await message.reply(
+            caption,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
 
 
 @router.message(youtube_url_filter)
@@ -44,37 +78,26 @@ async def youtube_url_handler(message: Message, state: FSMContext):
     url = message.text.strip()
     start_time = time.time()
 
-    # Log user action
     user_logger.log_user_action(
-        "youtube_url_handler",
+        HANDLER_NAME,
         user_id,
         "YouTube URL received",
         f"URL: {url[:50]}..."
     )
 
-    # Send initial status message
-    status_msg = await send_initial_status(message)
+    status_msg = await message.reply(f"{Emojis.HOURGLASS} Processing YouTube link...")
 
     try:
-        # Get video info with timeout
-        try:
-            user_logger.log_user_action(
-                "youtube_url_handler",
-                user_id,
-                "Fetching YouTube video info"
-            )
+        user_logger.log_user_action(HANDLER_NAME, user_id, "Fetching YouTube video info")
 
+        try:
             video_info = await asyncio.wait_for(
                 youtube_dl.get_video_info(url),
-                timeout=30  # 30 second timeout
+                timeout=30
             )
         except asyncio.TimeoutError:
-            user_logger.log_user_error(
-                "youtube_url_handler",
-                user_id,
-                "Timeout getting YouTube info"
-            )
-            await update_status(
+            user_logger.log_user_error(HANDLER_NAME, user_id, "Timeout getting YouTube info")
+            await safe_edit_message(
                 status_msg,
                 f"{Emojis.CROSS} Timeout getting video info.\n"
                 "YouTube might be slow or the video is too large."
@@ -82,12 +105,8 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             await state.clear()
             return
         except Exception as e:
-            user_logger.log_user_error(
-                "youtube_url_handler",
-                user_id,
-                f"YouTube API error: {str(e)}"
-            )
-            await update_status(
+            user_logger.log_user_error(HANDLER_NAME, user_id, f"YouTube API error: {str(e)}")
+            await safe_edit_message(
                 status_msg,
                 f"{Emojis.CROSS} Error getting video info.\n"
                 "Please check the URL and try again."
@@ -95,21 +114,20 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             await state.clear()
             return
 
-        # Check if anything is available
         qualities_with_size = video_info.get('qualities_with_size', [])
         audio_under_limit = video_info.get('audio_under_limit', False)
 
         if not qualities_with_size and not audio_under_limit:
-            max_size_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
+            max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
             user_logger.log_user_action(
-                "youtube_url_handler",
+                HANDLER_NAME,
                 user_id,
                 "No suitable formats available",
                 f"Title: {video_info.get('title', 'Unknown')[:50]} | Limit: {max_size_mb:.0f}MB"
             )
 
-            await update_status(
+            await safe_edit_message(
                 status_msg,
                 f"{Emojis.CROSS} <b>Unable to download</b>\n\n"
                 f"{Emojis.VIDEO} {video_info['title']}\n"
@@ -119,9 +137,8 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             await state.clear()
             return
 
-        # Log video info retrieval
         user_logger.log_user_action(
-            "youtube_url_handler",
+            HANDLER_NAME,
             user_id,
             "YouTube info retrieved",
             f"Title: {video_info.get('title', 'Unknown')[:50]} | "
@@ -130,113 +147,67 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             f"Audio available: {audio_under_limit}"
         )
 
-        # Prepare thumbnail asynchronously
         thumbnail = video_info.get('thumbnail')
-        thumbnail_file = None
-        if thumbnail:
-            try:
-                # Use URLInputFile without preloading
-                thumbnail_file = URLInputFile(
-                    thumbnail,
-                    filename="thumbnail.jpg"
-                )
-            except Exception as e:
-                logger.warning(f"Could not load thumbnail: {e}")
+        thumbnail_file = await load_thumbnail(thumbnail) if thumbnail else None
 
-        # Create keyboard
         keyboard = get_quality_keyboard_with_sizes(
             qualities_with_size,
             audio_under_limit,
             video_info.get('audio_size_str')
         )
 
-        # Prepare caption
         title = video_info.get('title', 'Unknown Title')
         author = video_info.get('author', 'Unknown Author')
-        duration = video_info.get('duration', 'Unknown')
+        video_duration = video_info.get('duration', 'Unknown')
 
         caption = (
             f"{Emojis.VIDEO} <b>{title[:100]}{'...' if len(title) > 100 else ''}</b>\n"
             f"{Emojis.USER} {author[:50]}\n"
-            f"{Emojis.CLOCK} Duration: {duration}\n\n"
+            f"{Emojis.CLOCK} Duration: {video_duration}\n\n"
             f"{Emojis.SIZE} Select quality to download:"
         )
 
-        # Send options and delete status message
-        try:
-            if thumbnail_file:
-                options_msg = await message.reply_photo(
-                    photo=thumbnail_file,
-                    caption=caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-            else:
-                options_msg = await message.reply(
-                    caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-        except Exception as e:
-            logger.error(f"Failed to send options: {e}")
-            # Fallback without thumbnail
-            options_msg = await message.reply(
-                caption,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
+        options_msg = await send_quality_options(message, caption, keyboard, thumbnail_file)
 
-        # Store in state WITH TIMESTAMP
         await state.update_data(
             video_info=video_info,
             url=url,
             platform="youtube",
             timestamp=time.time(),
             options_message_id=options_msg.message_id,
-            user_id=user_id  # Store user_id in state too
+            user_id=user_id
         )
         await state.set_state(YouTubeState.selecting_quality)
 
-        # Delete status message
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
+        await safe_delete_message(status_msg)
 
         logger.info(f"YouTube options sent for: {title[:50]}")
 
-        # Log options sent
         user_logger.log_user_action(
-            "youtube_url_handler",
+            HANDLER_NAME,
             user_id,
             "YouTube options sent to user",
             f"Message ID: {options_msg.message_id}"
         )
 
-        # Record metrics
         duration = time.time() - start_time
-        record_request("youtube_url_handler", True)
-        record_processing_time("youtube_url_handler", duration)
+        record_request(HANDLER_NAME, True)
+        record_processing_time(HANDLER_NAME, duration)
 
     except Exception as e:
         user_logger.log_user_error(
-            "youtube_url_handler",
+            HANDLER_NAME,
             user_id,
             f"YouTube handler error: {str(e)}"
         )
 
-        # Record error metrics
         duration = time.time() - start_time
         record_error("youtube", type(e).__name__)
-        record_request("youtube_url_handler", False)
-        record_processing_time("youtube_url_handler", duration)
+        record_request(HANDLER_NAME, False)
+        record_processing_time(HANDLER_NAME, duration)
 
-        try:
-            await status_msg.edit_text(
-                f"{Emojis.CROSS} Unexpected error. Please try again."
-            )
-        except Exception:
-            await message.reply(
-                f"{Emojis.CROSS} Unexpected error. Please try again."
-            )
+        await safe_send_error(
+            status_msg,
+            f"{Emojis.CROSS} Unexpected error. Please try again."
+        )
         await state.clear()

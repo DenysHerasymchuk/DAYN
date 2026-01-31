@@ -40,9 +40,20 @@ async def safe_edit_message(
     return False
 
 
-async def safe_send_error(callback: CallbackQuery, error_message: str) -> None:
+async def safe_send_error(target: CallbackQuery | Message, error_message: str) -> None:
+    """Send error message, trying edit first then fallback to reply/answer.
+
+    Args:
+        target: Either a CallbackQuery or Message to send error to
+        error_message: The error message to display
+    """
+    if isinstance(target, CallbackQuery):
+        message = target.message
+    else:
+        message = target
+
     success = await safe_edit_message(
-        callback.message,
+        message,
         error_message,
         parse_mode=None,
         try_caption_first=True
@@ -50,7 +61,7 @@ async def safe_send_error(callback: CallbackQuery, error_message: str) -> None:
 
     if not success:
         try:
-            await callback.message.answer(error_message)
+            await message.answer(error_message)
         except Exception as e:
             logger.warning(f"All message methods failed: {e}")
 
