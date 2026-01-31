@@ -11,6 +11,7 @@ from aiogram.types import FSInputFile, InputMediaPhoto, Message
 
 from app.bot.keyboards.tiktok_kb import get_audio_button
 from app.bot.utils.logger import user_logger
+from app.config.constants import Emojis
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -103,10 +104,9 @@ async def send_tiktok_photos(
                         except Exception as e2:
                             logger.error(f"Failed to send individual photo: {e2}")
 
-    # Send final summary message with audio button
     final_msg = await message.reply(
-        f"📸 TikTok Photos ({total_photos} images)\n"
-        f"👤 {author_link}\n\n"
+        f"{Emojis.PHOTO} TikTok Photos ({total_photos} images)\n"
+        f"{Emojis.USER} {author_link}\n\n"
         f"{bot_username}",
         parse_mode="HTML",
         reply_markup=get_audio_button()
@@ -160,10 +160,9 @@ async def handle_single_photo(
             f"Author: {author_link}"
         )
 
-        # Send single photo with caption and button
         photo_msg = await message.reply_photo(
             photo=FSInputFile(image_path),
-            caption=f"📸 TikTok Photo\n👤 {author_link}\n\nDownloaded via:\n{bot_username}",
+            caption=f"{Emojis.PHOTO} TikTok Photo\n{Emojis.USER} {author_link}\n\nDownloaded via:\n{bot_username}",
             parse_mode="HTML",
             reply_markup=get_audio_button()
         )

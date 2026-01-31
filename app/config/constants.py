@@ -1,5 +1,35 @@
+class Timeouts:
+    SESSION_EXPIRY_SECONDS = 86400
+    SOCKET_TIMEOUT = 30
+    DOWNLOAD_TIMEOUT = 300
+    PROGRESS_UPDATE_INTERVAL = 0.5
+    PROGRESS_TASK_WAIT = 1.0
+
+
+class TelegramLimits:
+    MAX_TITLE_LENGTH = 64
+    MAX_CAPTION_LENGTH = 1024
+    MAX_FILENAME_LENGTH = 64
+
+
+class DownloadSettings:
+    PROGRESS_UPDATE_THRESHOLD_PERCENT = 20
+    AUDIO_BITRATE = '192k'
+    AUDIO_CODEC = 'libmp3lame'
+    MAX_RETRIES = 3
+    FRAGMENT_RETRIES = 3
+    EXTRACTOR_RETRIES = 3
+
+
+class ProgressPercent:
+    AUDIO_EXTRACTION_START = 80
+    COMPLETE = 100
+
+
+BYTES_PER_MB = 1024 * 1024
+
+
 class Emojis:
-    """Emoji constants."""
     VIDEO = "🎬"
     MUSIC = "🎵"
     PHOTO = "📸"
@@ -7,21 +37,14 @@ class Emojis:
     CHECK = "✅"
     CROSS = "❌"
     WARNING = "⚠️"
-    INFO = "ℹ️"
     GEAR = "⚙️"
+    HOURGLASS = "⏳"
     CLOCK = "⏱"
     USER = "👤"
-    FOLDER = "📁"
     SIZE = "💾"
-    QUALITY = "📺"
     HELP = "📋"
     LIGHT = "💡"
-    THUMB_UP = "👍"
-    THUMB_DOWN = "👎"
-    PROGRESS = "📊"
-    LINK = "🔗"
-    MAGNIFY = "🔍"
-    ROBOT = "🤖"
+    UPLOAD = "📤"
 
 
 class Messages:

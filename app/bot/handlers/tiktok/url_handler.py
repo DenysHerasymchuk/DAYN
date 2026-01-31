@@ -18,7 +18,9 @@ from app.bot.utils.metrics import (
 )
 from app.bot.utils.progress import create_video_progress_bar
 from app.bot.utils.validators import is_tiktok_url
+from app.config.constants import BYTES_PER_MB, Emojis
 from app.config.settings import settings
+from app.core.file_manager import file_manager
 
 from . import tiktok_dl
 from .photo_handler import handle_single_photo, send_tiktok_photos
@@ -33,8 +35,6 @@ def tiktok_url_filter(message: Message) -> bool:
 
 async def cleanup_files(file_paths, user_id: int = None):
     """Clean up files using file manager with user logging."""
-    from app.core.file_manager import file_manager
-
     if not file_paths:
         return
 
@@ -83,8 +83,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             platform="tiktok"
         )
 
-        # Send initial status
-        status_msg = await message.reply("⏳ Processing TikTok link...")
+        status_msg = await message.reply(f"{Emojis.HOURGLASS} Processing TikTok link...")
 
         # Get video info
         video_info = await tiktok_dl.get_video_info(url)
@@ -103,8 +102,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
         await state.update_data(video_info=video_info)
         await state.set_state(TikTokState.selecting_format)
 
-        # Update status
-        await status_msg.edit_text(f"⬇️ Downloading {'photos' if content_type == 'photo' else 'video'}...")
+        await status_msg.edit_text(f"{Emojis.DOWNLOAD} Downloading {'photos' if content_type == 'photo' else 'video'}...")
 
         # Log download start
         user_logger.log_download_start("tiktok", user_id, url)
@@ -114,7 +112,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             try:
                 progress_bar = create_video_progress_bar(percent)
                 await status_msg.edit_text(
-                    f"⬇️ Downloading... {int(percent)}%\n{progress_bar}"
+                    f"{Emojis.DOWNLOAD} Downloading... {int(percent)}%\n{progress_bar}"
                 )
             except Exception:
                 pass
@@ -148,8 +146,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             total_downloaded = len(images)
 
             if total_downloaded == 1:
-                # Single photo - send with both captions and button
-                await status_msg.edit_text("📤 Sending photo...")
+                await status_msg.edit_text(f"{Emojis.UPLOAD} Sending photo...")
 
                 # Use photo handler
                 await handle_single_photo(
@@ -165,8 +162,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
                 asyncio.create_task(cleanup_files([images[0]], user_id))
 
             else:
-                # Multiple photos - use helper function
-                await status_msg.edit_text(f"📤 Sending {total_downloaded} photos...")
+                await status_msg.edit_text(f"{Emojis.UPLOAD} Sending {total_downloaded} photos...")
 
                 # Use photo handler
                 await send_tiktok_photos(
@@ -182,32 +178,29 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
                 asyncio.create_task(cleanup_files(images, user_id))
 
         else:
-            # It's a video
-            await status_msg.edit_text("📤 Sending video...")
+            await status_msg.edit_text(f"{Emojis.UPLOAD} Sending video...")
 
             file_path = content
             file_size = os.path.getsize(file_path)
             file_size_mb = file_size / (1024 * 1024)
 
             if file_size > settings.MAX_FILE_SIZE:
-                # Log error
                 user_logger.log_user_error(
                     "tiktok_url_handler",
                     user_id,
                     f"File too large: {file_size_mb:.1f}MB"
                 )
                 await status_msg.edit_text(
-                    f"❌ Video too large ({file_size_mb:.1f} MB)\n"
-                    f"Limit: {settings.MAX_FILE_SIZE / (1024 * 1024):.0f} MB"
+                    f"{Emojis.CROSS} Video too large ({file_size_mb:.1f} MB)\n"
+                    f"{Emojis.SIZE} Limit: {settings.MAX_FILE_SIZE / BYTES_PER_MB:.0f} MB"
                 )
                 if os.path.exists(file_path):
                     os.remove(file_path)
                 return
 
-            # Send video with caption and button
             video_msg = await message.reply_video(
                 video=FSInputFile(file_path),
-                caption=f"🎬 TikTok Video\n👤 {author_link}\n💾 {file_size_mb:.1f} MB\n\nDownloaded via:\n{bot_username}",
+                caption=f"{Emojis.VIDEO} TikTok Video\n{Emojis.USER} {author_link}\n{Emojis.SIZE} {file_size_mb:.1f} MB\n\nDownloaded via:\n{bot_username}",
                 parse_mode="HTML",
                 supports_streaming=True,
                 reply_markup=get_audio_button()
@@ -247,12 +240,12 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
 
         try:
             await status_msg.edit_text(
-                "❌ Error downloading TikTok content.\n"
+                f"{Emojis.CROSS} Error downloading TikTok content.\n"
                 "Please check the URL and try again."
             )
         except Exception:
             await message.reply(
-                "❌ Error downloading TikTok content.\n"
+                f"{Emojis.CROSS} Error downloading TikTok content.\n"
                 "Please check the URL and try again."
             )
         await state.clear()

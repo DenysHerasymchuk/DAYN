@@ -1,10 +1,10 @@
 import logging
-import os
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Optional
 
+import aiofiles.os
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
@@ -23,6 +23,7 @@ from app.bot.utils.metrics import (
     record_processing_time,
     record_request,
 )
+from app.config.constants import BYTES_PER_MB, Emojis, TelegramLimits
 from app.config.settings import settings
 
 from . import youtube_dl
@@ -53,8 +54,8 @@ class DownloadContext:
     @property
     def status_text(self) -> str:
         if self.download_type == DownloadType.VIDEO:
-            return f"Downloading {self.quality}p video..."
-        return "Downloading audio..."
+            return f"{Emojis.DOWNLOAD} Downloading {self.quality}p video..."
+        return f"{Emojis.MUSIC} Downloading audio..."
 
     @property
     def download_state(self):
@@ -74,7 +75,7 @@ async def validate_session(callback: CallbackQuery, state: FSMContext) -> Option
             callback.from_user.id,
             "Session expired - missing video_info or url"
         )
-        await callback.message.edit_text("Session expired. Please send the URL again.")
+        await callback.message.edit_text(f"{Emojis.HOURGLASS} Session expired. Please send the URL again.")
         await state.clear()
         return None
 
@@ -82,9 +83,9 @@ async def validate_session(callback: CallbackQuery, state: FSMContext) -> Option
 
 
 async def check_file_size(file_path: str, ctx: DownloadContext) -> Optional[float]:
-    file_size = os.path.getsize(file_path)
-    file_size_mb = file_size / (1024 * 1024)
-    max_size_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
+    file_size = await aiofiles.os.path.getsize(file_path)
+    file_size_mb = file_size / BYTES_PER_MB
+    max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
     if file_size > settings.MAX_FILE_SIZE:
         user_logger.log_user_error(
@@ -93,10 +94,10 @@ async def check_file_size(file_path: str, ctx: DownloadContext) -> Optional[floa
             f"File too large: {file_size_mb:.1f}MB (limit: {max_size_mb:.0f}MB)"
         )
         await ctx.callback.message.edit_text(
-            f"File too large ({file_size_mb:.1f} MB)\nLimit: {max_size_mb:.0f} MB"
+            f"{Emojis.CROSS} File too large ({file_size_mb:.1f} MB)\n{Emojis.SIZE} Limit: {max_size_mb:.0f} MB"
         )
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if await aiofiles.os.path.exists(file_path):
+            await aiofiles.os.remove(file_path)
         await ctx.state.clear()
         return None
 
@@ -110,9 +111,9 @@ async def send_video(ctx: DownloadContext, file_path: str, file_size_mb: float) 
     await ctx.callback.bot.send_video(
         chat_id=ctx.callback.message.chat.id,
         video=FSInputFile(file_path),
-        caption=f"<b>{ctx.video_info['title']}</b>\n"
-                f"Quality: {ctx.quality}p\n"
-                f"Size: {file_size_mb:.1f} MB\n\n"
+        caption=f"{Emojis.CHECK} <b>{ctx.video_info['title']}</b>\n"
+                f"{Emojis.VIDEO} Quality: {ctx.quality}p\n"
+                f"{Emojis.SIZE} Size: {file_size_mb:.1f} MB\n\n"
                 f"Downloaded via:\n{bot_username}",
         parse_mode="HTML",
         supports_streaming=True
@@ -126,9 +127,14 @@ async def send_audio(ctx: DownloadContext, file_path: str) -> None:
     await ctx.callback.bot.send_audio(
         chat_id=ctx.callback.message.chat.id,
         audio=FSInputFile(file_path),
-        title=ctx.video_info.get('title', 'Audio')[:64],
-        performer=ctx.video_info.get('author', 'Unknown')[:64],
-        caption=f"{bot_username}"
+        title=ctx.video_info.get('title', 'YouTube Audio')[:TelegramLimits.MAX_TITLE_LENGTH],
+        performer=ctx.video_info.get('author', 'Unknown')[:TelegramLimits.MAX_TITLE_LENGTH],
+        caption=(
+            f"{Emojis.MUSIC} YouTube Audio\n"
+            f"{Emojis.USER} {ctx.video_info.get('author', 'Unknown')}\n\n"
+            f"Downloaded via:\n{bot_username}"
+        ),
+        parse_mode="HTML"
     )
 
 
@@ -164,7 +170,7 @@ async def process_download(ctx: DownloadContext) -> None:
         if file_size_mb is None:
             return
 
-        file_size = os.path.getsize(file_path)
+        file_size = await aiofiles.os.path.getsize(file_path)
 
         if ctx.download_type == DownloadType.VIDEO:
             await send_video(ctx, file_path, file_size_mb)
@@ -179,8 +185,8 @@ async def process_download(ctx: DownloadContext) -> None:
             f"Size: {file_size_mb:.1f}MB"
         )
 
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if await aiofiles.os.path.exists(file_path):
+            await aiofiles.os.remove(file_path)
 
         await safe_delete_message(ctx.callback.message)
 
@@ -203,7 +209,7 @@ async def process_download(ctx: DownloadContext) -> None:
         record_request(ctx.handler_name, False)
         record_processing_time(ctx.handler_name, duration)
 
-        await safe_send_error(ctx.callback, "Download failed. Please try again.")
+        await safe_send_error(ctx.callback, f"{Emojis.CROSS} Download failed. Please try again.")
         await ctx.state.clear()
 
 

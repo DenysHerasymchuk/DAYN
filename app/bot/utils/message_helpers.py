@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from .progress import create_video_progress_bar
 
@@ -10,19 +10,29 @@ logger = logging.getLogger(__name__)
 
 async def safe_edit_message(
     message: Message,
-    text: str,
+    text: Optional[str] = None,
     parse_mode: Optional[str] = "HTML",
-    try_caption_first: bool = True
+    try_caption_first: bool = True,
+    reply_markup: Optional[InlineKeyboardMarkup] = None
 ) -> bool:
+    # If no text provided, only edit reply_markup (e.g., to clear buttons)
+    if text is None:
+        try:
+            await message.edit_reply_markup(reply_markup=reply_markup)
+            return True
+        except Exception as e:
+            logger.debug(f"edit_reply_markup failed: {e}")
+            return False
+
     if try_caption_first:
         try:
-            await message.edit_caption(caption=text, parse_mode=parse_mode)
+            await message.edit_caption(caption=text, parse_mode=parse_mode, reply_markup=reply_markup)
             return True
         except Exception as e:
             logger.debug(f"edit_caption failed: {e}")
 
     try:
-        await message.edit_text(text, parse_mode=parse_mode)
+        await message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
         return True
     except Exception as e:
         logger.debug(f"edit_text failed: {e}")

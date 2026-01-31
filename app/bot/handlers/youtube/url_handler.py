@@ -11,6 +11,7 @@ from app.bot.states.download_states import YouTubeState
 from app.bot.utils.logger import user_logger
 from app.bot.utils.metrics import record_error, record_processing_time, record_request
 from app.bot.utils.validators import is_youtube_url
+from app.config.constants import Emojis
 from app.config.settings import settings
 
 from . import youtube_dl
@@ -25,8 +26,7 @@ def youtube_url_filter(message: Message) -> bool:
 
 
 async def send_initial_status(message: Message) -> Message:
-    """Send initial processing status message."""
-    return await message.reply("⏳ Processing YouTube link...")
+    return await message.reply(f"{Emojis.HOURGLASS} Processing YouTube link...")
 
 
 async def update_status(status_msg: Message, text: str):
@@ -76,7 +76,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             )
             await update_status(
                 status_msg,
-                "❌ Timeout getting video info.\n"
+                f"{Emojis.CROSS} Timeout getting video info.\n"
                 "YouTube might be slow or the video is too large."
             )
             await state.clear()
@@ -89,7 +89,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             )
             await update_status(
                 status_msg,
-                "❌ Error getting video info.\n"
+                f"{Emojis.CROSS} Error getting video info.\n"
                 "Please check the URL and try again."
             )
             await state.clear()
@@ -111,9 +111,9 @@ async def youtube_url_handler(message: Message, state: FSMContext):
 
             await update_status(
                 status_msg,
-                f"❌ <b>Unable to download</b>\n\n"
-                f"📹 {video_info['title']}\n"
-                f"⏱ Duration: {video_info['duration']}\n\n"
+                f"{Emojis.CROSS} <b>Unable to download</b>\n\n"
+                f"{Emojis.VIDEO} {video_info['title']}\n"
+                f"{Emojis.CLOCK} Duration: {video_info['duration']}\n\n"
                 f"All formats exceed {max_size_mb:.0f} MB limit."
             )
             await state.clear()
@@ -156,10 +156,10 @@ async def youtube_url_handler(message: Message, state: FSMContext):
         duration = video_info.get('duration', 'Unknown')
 
         caption = (
-            f"📹 <b>{title[:100]}{'...' if len(title) > 100 else ''}</b>\n"
-            f"👤 {author[:50]}\n"
-            f"⏱ Duration: {duration}\n\n"
-            f"💾 Select quality to download:"
+            f"{Emojis.VIDEO} <b>{title[:100]}{'...' if len(title) > 100 else ''}</b>\n"
+            f"{Emojis.USER} {author[:50]}\n"
+            f"{Emojis.CLOCK} Duration: {duration}\n\n"
+            f"{Emojis.SIZE} Select quality to download:"
         )
 
         # Send options and delete status message
@@ -233,10 +233,10 @@ async def youtube_url_handler(message: Message, state: FSMContext):
 
         try:
             await status_msg.edit_text(
-                "❌ Unexpected error. Please try again."
+                f"{Emojis.CROSS} Unexpected error. Please try again."
             )
         except Exception:
             await message.reply(
-                "❌ Unexpected error. Please try again."
+                f"{Emojis.CROSS} Unexpected error. Please try again."
             )
         await state.clear()
