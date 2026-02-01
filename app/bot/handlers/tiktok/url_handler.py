@@ -7,10 +7,11 @@ from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, Message
 
-from app.bot.keyboards.tiktok_kb import get_audio_button
+from app.bot.keyboards.tiktok_kb import get_audio_button, get_cancel_keyboard
 from app.bot.states.download_states import TikTokState
 from app.bot.utils.logger import user_logger
 from app.bot.utils.message_helpers import (
+    create_photo_progress_callback,
     create_progress_callback,
     safe_delete_message,
     safe_edit_message,
@@ -28,6 +29,7 @@ from app.config.settings import settings
 from app.core.file_manager import file_manager
 
 from . import tiktok_dl
+from ..common.cancel import is_cancelled
 from .photo_handler import handle_single_photo, send_tiktok_photos
 
 logger = logging.getLogger(__name__)
@@ -224,16 +226,70 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             f"User: @{username} | Type: {content_type}"
         )
 
+        # Pre-check estimated size for videos (not photos)
+        if content_type != 'photo':
+            estimated_size = video_info.get('estimated_size', 0)
+            if estimated_size > settings.MAX_FILE_SIZE:
+                estimated_mb = estimated_size / BYTES_PER_MB
+                max_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
+                is_estimated = video_info.get('size_is_estimated', True)
+
+                user_logger.log_user_error(
+                    HANDLER_NAME,
+                    user_id,
+                    f"Video too large (pre-check): ~{estimated_mb:.1f}MB"
+                )
+
+                estimate_note = " (estimated)" if is_estimated else ""
+                await safe_edit_message(
+                    status_msg,
+                    f"{Emojis.CROSS} Video too large{estimate_note}: ~{estimated_mb:.1f} MB\n"
+                    f"{Emojis.SIZE} Limit: {max_mb:.0f} MB"
+                )
+                await state.clear()
+                return
+
         await state.update_data(video_info=video_info)
         await state.set_state(TikTokState.selecting_format)
 
-        download_text = f"{Emojis.DOWNLOAD} Downloading {'photos' if content_type == 'photo' else 'video'}..."
-        await safe_edit_message(status_msg, download_text)
+        cancel_kb = get_cancel_keyboard()
 
-        user_logger.log_download_start("tiktok", user_id, url)
+        if content_type == 'photo':
+            download_text = f"{Emojis.DOWNLOAD} Downloading photos..."
+            await safe_edit_message(status_msg, download_text, reply_markup=cancel_kb)
+            user_logger.log_download_start("tiktok", user_id, url)
 
-        progress_callback = create_progress_callback(status_msg, f"{Emojis.DOWNLOAD} Downloading...")
-        content = await tiktok_dl.download_video(url, progress_callback=progress_callback)
+            photo_progress = create_photo_progress_callback(
+                status_msg,
+                f"{Emojis.PHOTO} Downloading photos",
+                cancel_kb,
+                state
+            )
+            content = await tiktok_dl.download_video(url, photo_progress_callback=photo_progress)
+        else:
+            download_text = f"{Emojis.DOWNLOAD} Downloading video..."
+            await safe_edit_message(status_msg, download_text, reply_markup=cancel_kb)
+            user_logger.log_download_start("tiktok", user_id, url)
+
+            video_progress = create_progress_callback(
+                status_msg,
+                f"{Emojis.DOWNLOAD} Downloading video",
+                cancel_kb,
+                state
+            )
+            content = await tiktok_dl.download_video(url, progress_callback=video_progress)
+
+        # Check if user cancelled during download
+        if await is_cancelled(state):
+            user_logger.log_user_action(HANDLER_NAME, user_id, "Download cancelled by user")
+            # Clean up downloaded files
+            if isinstance(content, list):
+                await cleanup_files(content, user_id)
+            elif content and await aiofiles.os.path.exists(content):
+                await aiofiles.os.remove(content)
+            await safe_edit_message(status_msg, f"{Emojis.CROSS} Download cancelled.")
+            await state.clear()
+            return
 
         total_size = await calculate_content_size(content)
         file_size_mb = total_size / BYTES_PER_MB

@@ -4,6 +4,14 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.config.constants import CallbackData, Emojis
 
 
+def get_cancel_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard shown during download - cancel option."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=f"{Emojis.CROSS} Cancel", callback_data=CallbackData.CANCEL)
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 def get_quality_keyboard_with_sizes(
         qualities_with_size: list,
         audio_under_limit: bool = True,
@@ -25,7 +33,7 @@ def get_quality_keyboard_with_sizes(
     if audio_under_limit:
         builder.button(text=f"{Emojis.MUSIC} MP3 - {audio_size_str}", callback_data=CallbackData.FORMAT_AUDIO)
 
-    # Adjust layout
+    # Adjust layout: qualities in pairs, audio alone
     row_pattern = [2] * (num_qualities // 2)
     if num_qualities % 2 == 1:
         row_pattern.append(1)

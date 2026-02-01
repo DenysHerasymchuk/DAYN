@@ -16,6 +16,34 @@ class TikTokVideoDownloader:
         self.temp_dir = temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
+    async def get_info(self, url: str) -> dict:
+        """Extract video info without downloading. Returns estimated filesize."""
+        loop = asyncio.get_event_loop()
+
+        def extract():
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                },
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                return ydl.extract_info(url, download=False)
+
+        info = await loop.run_in_executor(None, extract)
+
+        filesize = info.get('filesize') or info.get('filesize_approx') or 0
+        duration = info.get('duration') or 0
+
+        return {
+            'filesize': filesize,
+            'filesize_approx': info.get('filesize_approx'),
+            'duration': duration,
+            'title': info.get('title'),
+            'is_estimated': info.get('filesize') is None,
+        }
+
     async def download(self, url: str, video_id: str, extract_audio: bool = False,
                        progress_callback: Optional[Callable] = None) -> str:
         """Download TikTok video or audio using yt-dlp."""
@@ -39,14 +67,14 @@ class TikTokVideoDownloader:
                 last_percent = -1
                 while progress_state['downloading']:
                     current_percent = progress_state['percent']
-                    # Only update if changed by at least 20% to reduce overhead
-                    if abs(current_percent - last_percent) >= 20:
+                    # Update every 2% change - callback handles rate limiting
+                    if abs(current_percent - last_percent) >= 2:
                         try:
                             await progress_callback(current_percent)
                             last_percent = current_percent
                         except Exception as e:
                             logger.debug(f"Progress callback error: {e}")
-                    await asyncio.sleep(0.5)  # Check every 0.5 seconds
+                    await asyncio.sleep(0.3)  # Check every 0.3 seconds
 
             # Start progress updater if callback provided
             progress_task = None

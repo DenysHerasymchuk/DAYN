@@ -1,11 +1,20 @@
 import logging
 from typing import Optional
 
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 from .progress import create_video_progress_bar
 
 logger = logging.getLogger(__name__)
+
+
+async def _is_cancelled(state: Optional[FSMContext]) -> bool:
+    """Check if download was cancelled. Returns False if no state provided."""
+    if state is None:
+        return False
+    data = await state.get_data()
+    return data.get('cancelled', False)
 
 
 async def safe_edit_message(
@@ -69,16 +78,89 @@ async def safe_send_error(target: CallbackQuery | Message, error_message: str) -
 async def update_download_progress(
     message: Message,
     percent: float,
-    status_text: str
+    status_text: str,
+    reply_markup: Optional[InlineKeyboardMarkup] = None
 ) -> None:
     progress_bar = create_video_progress_bar(percent)
-    full_text = f"{status_text}\n{progress_bar}"
-    await safe_edit_message(message, full_text, parse_mode="HTML")
+    full_text = f"{status_text} {int(percent)}%\n{progress_bar}"
+    await safe_edit_message(message, full_text, parse_mode="HTML", reply_markup=reply_markup)
 
 
-def create_progress_callback(message: Message, status_text: str):
+def create_progress_callback(
+    message: Message,
+    status_text: str,
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
+    state: Optional[FSMContext] = None
+):
+    """Create a progress callback for percentage-based progress.
+
+    Args:
+        message: Message to update with progress
+        status_text: Text to show before progress bar
+        reply_markup: Optional keyboard to show
+        state: Optional FSMContext to check for cancellation
+    """
+    last_percent = [-1]  # Mutable to track last update
+    stopped = [False]  # Flag to stop updates after cancellation
+
     async def callback(percent: float) -> None:
-        await update_download_progress(message, percent, status_text)
+        if stopped[0]:
+            return
+
+        # Check if cancelled
+        if await _is_cancelled(state):
+            stopped[0] = True
+            return
+
+        # Update every 5% to reduce API calls but still be responsive
+        if abs(percent - last_percent[0]) >= 5 or percent >= 100:
+            await update_download_progress(message, percent, status_text, reply_markup)
+            last_percent[0] = percent
+
+    return callback
+
+
+async def update_photo_progress(
+    message: Message,
+    current: int,
+    total: int,
+    status_text: str,
+    reply_markup: Optional[InlineKeyboardMarkup] = None
+) -> None:
+    """Update progress for photo downloads showing count."""
+    percent = (current / total) * 100 if total > 0 else 0
+    progress_bar = create_video_progress_bar(percent)
+    full_text = f"{status_text} ({current}/{total})\n{progress_bar}"
+    await safe_edit_message(message, full_text, parse_mode="HTML", reply_markup=reply_markup)
+
+
+def create_photo_progress_callback(
+    message: Message,
+    status_text: str,
+    reply_markup: Optional[InlineKeyboardMarkup] = None,
+    state: Optional[FSMContext] = None
+):
+    """Create a progress callback for photo count progress.
+
+    Args:
+        message: Message to update with progress
+        status_text: Text to show before progress bar
+        reply_markup: Optional keyboard to show
+        state: Optional FSMContext to check for cancellation
+    """
+    stopped = [False]  # Flag to stop updates after cancellation
+
+    async def callback(current: int, total: int) -> None:
+        if stopped[0]:
+            return
+
+        # Check if cancelled
+        if await _is_cancelled(state):
+            stopped[0] = True
+            return
+
+        await update_photo_progress(message, current, total, status_text, reply_markup)
+
     return callback
 
 

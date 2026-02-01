@@ -22,8 +22,21 @@ class TikTokPhotoDownloader:
         self.temp_dir = temp_dir
         os.makedirs(temp_dir, exist_ok=True)
 
-    async def download(self, url: str, video_id: str, progress_callback: Optional[Callable] = None) -> List[str]:
-        """Download PHOTOS using musicaldown.com API."""
+    async def download(
+        self,
+        url: str,
+        video_id: str,
+        progress_callback: Optional[Callable] = None,
+        photo_progress_callback: Optional[Callable] = None
+    ) -> List[str]:
+        """Download PHOTOS using musicaldown.com API.
+
+        Args:
+            url: TikTok URL
+            video_id: Video ID for filename
+            progress_callback: Optional callback(percent: float) for percentage progress
+            photo_progress_callback: Optional callback(current: int, total: int) for photo count progress
+        """
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -54,9 +67,6 @@ class TikTokPhotoDownloader:
             if token_b and token_b_value:
                 data[token_b] = token_b_value
 
-            if progress_callback:
-                await progress_callback(10)
-
             # Submit the form
             async with session.post(
                     'https://musicaldown.com/download',
@@ -64,9 +74,6 @@ class TikTokPhotoDownloader:
                     data=data
             ) as response:
                 result_html = await response.text()
-
-            if progress_callback:
-                await progress_callback(30)
 
             # Extract photo URLs
             photo_urls = re.findall(r'<div class="card-image">\s*<img[^>]+src="([^"]+)"', result_html)
@@ -85,11 +92,16 @@ class TikTokPhotoDownloader:
             total = len(photo_urls)
 
             for i, photo_url in enumerate(photo_urls):
-                if progress_callback:
-                    percent = 30 + ((i + 1) / total) * 60
+                current = i + 1
+
+                # Use photo count callback if provided, otherwise use percent callback
+                if photo_progress_callback:
+                    await photo_progress_callback(current, total)
+                elif progress_callback:
+                    percent = (current / total) * 100
                     await progress_callback(percent)
 
-                file_path = os.path.join(self.temp_dir, f"{video_id}_photo_{i + 1}.jpeg")
+                file_path = os.path.join(self.temp_dir, f"{video_id}_photo_{current}.jpeg")
 
                 async with session.get(photo_url, headers=HEADERS) as img_response:
                     if img_response.status == 200:
@@ -97,9 +109,6 @@ class TikTokPhotoDownloader:
                         with open(file_path, 'wb') as f:
                             f.write(content)
                         downloaded_files.append(file_path)
-                        logger.debug(f"Downloaded photo {i + 1}/{total}")
-
-            if progress_callback:
-                await progress_callback(100)
+                        logger.debug(f"Downloaded photo {current}/{total}")
 
             return downloaded_files

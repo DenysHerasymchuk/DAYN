@@ -105,6 +105,5 @@ class Messages:
         "{cross} Please send a valid YouTube or TikTok URL.\n\n"
         "{light} <b>Examples:</b>\n"
         "• https://www.youtube.com/watch?v=...\n"
-        "• https://youtu.be/...\n"
         "• https://www.tiktok.com/@.../video/..."
     )

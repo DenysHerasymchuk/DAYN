@@ -9,6 +9,8 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
 
+from app.bot.handlers.common.cancel import is_cancelled
+from app.bot.keyboards.youtube_kb import get_cancel_keyboard
 from app.bot.states.download_states import YouTubeState
 from app.bot.utils.logger import user_logger
 from app.bot.utils.message_helpers import (
@@ -149,8 +151,9 @@ async def process_download(ctx: DownloadContext) -> None:
             f"Title: {ctx.video_info.get('title', 'Unknown')[:50]}"
         )
 
-        progress_callback = create_progress_callback(ctx.callback.message, ctx.status_text)
-        await safe_edit_message(ctx.callback.message, ctx.status_text)
+        cancel_kb = get_cancel_keyboard()
+        progress_callback = create_progress_callback(ctx.callback.message, ctx.status_text, cancel_kb, ctx.state)
+        await safe_edit_message(ctx.callback.message, ctx.status_text, reply_markup=cancel_kb)
 
         quality_str = f"{ctx.quality}p" if ctx.quality else "audio"
         user_logger.log_download_start("youtube", ctx.user_id, ctx.url, quality_str)
@@ -165,6 +168,15 @@ async def process_download(ctx: DownloadContext) -> None:
             file_path = await youtube_dl.download_audio(
                 ctx.url, progress_callback=progress_callback
             )
+
+        # Check if user cancelled during download
+        if await is_cancelled(ctx.state):
+            user_logger.log_user_action(ctx.handler_name, ctx.user_id, "Download cancelled by user")
+            if file_path and await aiofiles.os.path.exists(file_path):
+                await aiofiles.os.remove(file_path)
+            await safe_edit_message(ctx.callback.message, f"{Emojis.CROSS} Download cancelled.")
+            await ctx.state.clear()
+            return
 
         file_size_mb = await check_file_size(file_path, ctx)
         if file_size_mb is None:

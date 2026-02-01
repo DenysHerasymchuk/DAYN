@@ -38,14 +38,14 @@ class YouTubeAudioDownloader:
                 last_percent = -1
                 while progress_state['downloading']:
                     current_percent = progress_state['percent']
-                    # Only update if changed by at least 20% to reduce overhead
-                    if abs(current_percent - last_percent) >= 20:
+                    # Update every 2% change - callback handles rate limiting
+                    if abs(current_percent - last_percent) >= 2:
                         try:
                             await progress_callback(current_percent)
                             last_percent = current_percent
                         except Exception as e:
                             logger.debug(f"Progress callback error: {e}")
-                    await asyncio.sleep(0.5)  # Check every 0.5 seconds
+                    await asyncio.sleep(0.3)  # Check every 0.3 seconds
 
             # Start progress updater if callback provided
             progress_task = None
