@@ -3,14 +3,15 @@ Photo-specific handler for TikTok photo posts.
 This contains logic extracted from the main TikTok handler.
 """
 import logging
-import os
 
+import aiofiles.os
 from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import FSInputFile, InputMediaPhoto, Message
 
 from app.bot.keyboards.tiktok_kb import get_audio_button
 from app.bot.utils.logger import user_logger
+from app.config.constants import Emojis, TelegramConfig
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -37,7 +38,9 @@ async def send_tiktok_photos(
         user_id: Telegram user ID for logging
     """
     total_photos = len(images)
-    batch_size = 10  # Telegram media group limit
+    batch_size = TelegramConfig.MEDIA_GROUP_BATCH_SIZE
+    sent_count = 0
+    failed_count = 0
 
     # Log photo sending start
     user_logger.log_user_action(
@@ -47,24 +50,27 @@ async def send_tiktok_photos(
         f"Author: {author_link}"
     )
 
-    # Send photos in batches of 10 WITHOUT CAPTIONS
+    # Send photos in batches WITHOUT CAPTIONS
     for batch_num, i in enumerate(range(0, total_photos, batch_size), 1):
         batch = images[i:i + batch_size]
 
         media_group = []
         for img_path in batch:
-            if not os.path.exists(img_path):
+            if not await aiofiles.os.path.exists(img_path):
                 logger.warning(f"Image file not found: {img_path}")
+                failed_count += 1
                 continue
 
             # Check if file is valid
             try:
-                file_size = os.path.getsize(img_path)
+                file_size = await aiofiles.os.path.getsize(img_path)
                 if file_size == 0:
                     logger.error(f"Empty image file: {img_path}")
+                    failed_count += 1
                     continue
             except OSError as e:
                 logger.error(f"Could not read image file {img_path}: {e}")
+                failed_count += 1
                 continue
 
             # NO CAPTION - just send the photo
@@ -77,6 +83,7 @@ async def send_tiktok_photos(
         if media_group:
             try:
                 await message.reply_media_group(media=media_group)
+                sent_count += len(media_group)
                 logger.debug(f"✓ Sent batch {batch_num} with {len(media_group)} photos")
 
                 # Log batch sent
@@ -97,17 +104,22 @@ async def send_tiktok_photos(
 
                 # Fallback: send photos one by one
                 for img_path in batch:
-                    if os.path.exists(img_path):
+                    if await aiofiles.os.path.exists(img_path):
                         try:
                             await message.reply_photo(FSInputFile(img_path))
+                            sent_count += 1
                         except Exception as e2:
                             logger.error(f"Failed to send individual photo: {e2}")
+                            failed_count += 1
 
-    # Send final summary message with audio button
+    # Build final message with status
+    status_text = f"{Emojis.PHOTO} TikTok Photos ({sent_count}/{total_photos} images)\n"
+    if failed_count > 0:
+        status_text += f"{Emojis.WARNING} {failed_count} photo(s) failed to send\n"
+    status_text += f"{Emojis.USER} {author_link}\n\n{bot_username}"
+
     final_msg = await message.reply(
-        f"📸 TikTok Photos ({total_photos} images)\n"
-        f"👤 {author_link}\n\n"
-        f"{bot_username}",
+        status_text,
         parse_mode="HTML",
         reply_markup=get_audio_button()
     )
@@ -119,14 +131,14 @@ async def send_tiktok_photos(
         user_id=user_id  # Store user_id for callback context
     )
 
-    logger.info(f"✓ Sent final summary with audio button for {total_photos} photos")
+    logger.info(f"✓ Sent final summary: {sent_count}/{total_photos} photos (failed: {failed_count})")
 
     # Log final message sent
     user_logger.log_user_action(
         "photo_handler.send_tiktok_photos",
         user_id,
         "Final summary sent",
-        f"Total photos: {total_photos} | Message ID: {final_msg.message_id}"
+        f"Sent: {sent_count}/{total_photos} | Failed: {failed_count} | Message ID: {final_msg.message_id}"
     )
 
     return final_msg
@@ -160,10 +172,9 @@ async def handle_single_photo(
             f"Author: {author_link}"
         )
 
-        # Send single photo with caption and button
         photo_msg = await message.reply_photo(
             photo=FSInputFile(image_path),
-            caption=f"📸 TikTok Photo\n👤 {author_link}\n\nDownloaded via:\n{bot_username}",
+            caption=f"{Emojis.PHOTO} TikTok Photo\n{Emojis.USER} {author_link}\n\nDownloaded via:\n{bot_username}",
             parse_mode="HTML",
             reply_markup=get_audio_button()
         )

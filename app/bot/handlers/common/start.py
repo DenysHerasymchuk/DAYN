@@ -2,7 +2,7 @@ from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
-from app.config.constants import Emojis, Messages
+from app.config.constants import BYTES_PER_MB, Emojis, Messages
 from app.config.settings import settings
 
 router = Router()
@@ -10,8 +10,7 @@ router = Router()
 
 @router.message(CommandStart())
 async def start_handler(message: Message):
-    """Handle /start command."""
-    max_size_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
+    max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
     await message.answer(
         Messages.START.format(
@@ -26,8 +25,7 @@ async def start_handler(message: Message):
 
 @router.message(Command("help"))
 async def help_handler(message: Message):
-    """Handle /help command."""
-    max_size_mb = settings.MAX_FILE_SIZE / (1024 * 1024)
+    max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
     await message.answer(
         Messages.HELP.format(

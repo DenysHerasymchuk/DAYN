@@ -1,34 +1,39 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.config.constants import CallbackData, Emojis
+
+
+def get_cancel_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard shown during download - cancel option."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=f"{Emojis.CROSS} Cancel", callback_data=CallbackData.CANCEL)
+    builder.adjust(1)
+    return builder.as_markup()
+
 
 def get_quality_keyboard_with_sizes(
         qualities_with_size: list,
         audio_under_limit: bool = True,
         audio_size_str: str = ""
 ) -> InlineKeyboardMarkup:
-    """Create quality selection keyboard with file sizes."""
     builder = InlineKeyboardBuilder()
 
-    # Reverse order so lowest quality is at top
     reversed_qualities = list(reversed(qualities_with_size))
 
-    # Add quality buttons with file sizes (2 per row)
     for height, _size_bytes, size_str, _estimated in reversed_qualities:
         display_text = f"{height}p - {size_str}"
         builder.button(
             text=display_text,
-            callback_data=f"quality_{height}"
+            callback_data=CallbackData.quality(height)
         )
 
-    # Calculate how many rows we need for qualities
     num_qualities = len(reversed_qualities)
 
-    # Add MP3 option at bottom if audio is under limit
     if audio_under_limit:
-        builder.button(text=f"🎵 MP3 - {audio_size_str}", callback_data="format_audio")
+        builder.button(text=f"{Emojis.MUSIC} MP3 - {audio_size_str}", callback_data=CallbackData.FORMAT_AUDIO)
 
-    # Adjust layout
+    # Adjust layout: qualities in pairs, audio alone
     row_pattern = [2] * (num_qualities // 2)
     if num_qualities % 2 == 1:
         row_pattern.append(1)

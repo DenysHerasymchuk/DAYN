@@ -21,15 +21,41 @@ class TikTokDownloader:
         self.audio = TikTokAudioExtractor(temp_dir)
 
     async def get_video_info(self, url: str):
-        """Get TikTok video/photo info."""
-        return await self.base.get_video_info(url)
+        """Get TikTok video/photo info including estimated file size."""
+        base_info = await self.base.get_video_info(url)
 
-    async def download_video(self, url: str, progress_callback=None):
-        """Download TikTok video or photos."""
+        # For videos, get size estimate from yt-dlp
+        if base_info.get('content_type') != 'photo':
+            try:
+                ytdlp_info = await self.videos.get_info(url)
+                base_info['estimated_size'] = ytdlp_info.get('filesize', 0)
+                base_info['size_is_estimated'] = ytdlp_info.get('is_estimated', True)
+                if ytdlp_info.get('duration'):
+                    base_info['duration'] = ytdlp_info['duration']
+            except Exception as e:
+                logger.warning(f"Could not get size estimate: {e}")
+                base_info['estimated_size'] = 0
+                base_info['size_is_estimated'] = True
+
+        return base_info
+
+    async def download_video(self, url: str, progress_callback=None, photo_progress_callback=None):
+        """Download TikTok video or photos.
+
+        Args:
+            url: TikTok URL
+            progress_callback: Callback(percent: float) for video progress
+            photo_progress_callback: Callback(current: int, total: int) for photo progress
+        """
         info = await self.get_video_info(url)
 
         if info.get('content_type') == "photo":
-            return await self.photos.download(url, info.get('video_id'), progress_callback)
+            return await self.photos.download(
+                url,
+                info.get('video_id'),
+                progress_callback,
+                photo_progress_callback
+            )
         else:
             return await self.videos.download(url, info.get('video_id'), False, progress_callback)
 
