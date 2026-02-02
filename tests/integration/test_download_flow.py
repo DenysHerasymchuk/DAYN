@@ -3,8 +3,6 @@
 These tests verify the complete download flow from URL to file delivery.
 External APIs (YouTube, TikTok) are mocked to ensure test reliability.
 """
-from unittest.mock import patch
-
 import pytest
 
 
@@ -83,20 +81,17 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_file_cleanup_after_send(self, temp_dir):
         """Test that temporary files are cleaned up after sending."""
-        with patch("app.config.settings.settings") as mock_settings:
-            mock_settings.TEMP_DIR = str(temp_dir)
-            mock_settings.MAX_FILE_SIZE = 50 * 1024 * 1024
+        from app.core.file_manager import create_file_manager
 
-            from app.core.file_manager import FileManager
-            fm = FileManager()
-            fm.temp_dir = str(temp_dir)
+        fm = create_file_manager(str(temp_dir))
+        fm.initialize()
 
-            # Create a temp file
-            test_file = temp_dir / "temp_video.mp4"
-            test_file.write_bytes(b"fake video content")
+        # Create a temp file
+        test_file = temp_dir / "temp_video.mp4"
+        test_file.write_bytes(b"fake video content")
 
-            # Simulate cleanup
-            result = await fm.cleanup_file(str(test_file))
+        # Simulate cleanup
+        result = await fm.cleanup_file(str(test_file))
 
-            assert result is True
-            assert not test_file.exists()
+        assert result is True
+        assert not test_file.exists()

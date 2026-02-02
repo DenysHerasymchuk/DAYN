@@ -236,6 +236,16 @@ async def youtube_quality_callback(callback: CallbackQuery, state: FSMContext):
     url, video_info = session
     quality = CallbackData.parse_quality(callback.data)
 
+    if quality is None:
+        user_logger.log_user_error(
+            "youtube_quality_callback",
+            callback.from_user.id,
+            f"Invalid quality callback data: {callback.data}"
+        )
+        await callback.message.edit_text(f"{Emojis.CROSS} Invalid quality selection. Please try again.")
+        await state.clear()
+        return
+
     ctx = DownloadContext(
         callback=callback,
         state=state,

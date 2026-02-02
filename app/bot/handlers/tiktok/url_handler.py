@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import time
 
@@ -28,8 +27,8 @@ from app.config.constants import BYTES_PER_MB, Emojis
 from app.config.settings import settings
 from app.core.file_manager import file_manager
 
-from . import tiktok_dl
 from ..common.cancel import is_cancelled
+from . import tiktok_dl
 from .photo_handler import handle_single_photo, send_tiktok_photos
 
 logger = logging.getLogger(__name__)
@@ -151,7 +150,7 @@ async def handle_photo_content(
             state=state,
             user_id=user_id
         )
-        asyncio.create_task(cleanup_files([images[0]], user_id))
+        await cleanup_files([images[0]], user_id)
     else:
         await safe_edit_message(status_msg, f"{Emojis.UPLOAD} Sending {total_downloaded} photos...")
         await send_tiktok_photos(
@@ -162,7 +161,7 @@ async def handle_photo_content(
             state=state,
             user_id=user_id
         )
-        asyncio.create_task(cleanup_files(images, user_id))
+        await cleanup_files(images, user_id)
 
 
 async def handle_video_content(
@@ -188,7 +187,7 @@ async def handle_video_content(
         bot_username=bot_username,
         state=state
     )
-    asyncio.create_task(cleanup_files([file_path], user_id))
+    await cleanup_files([file_path], user_id)
     return True
 
 
@@ -286,7 +285,10 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             if isinstance(content, list):
                 await cleanup_files(content, user_id)
             elif content and await aiofiles.os.path.exists(content):
-                await aiofiles.os.remove(content)
+                try:
+                    await aiofiles.os.remove(content)
+                except OSError:
+                    pass  # File already removed or inaccessible
             await safe_edit_message(status_msg, f"{Emojis.CROSS} Download cancelled.")
             await state.clear()
             return

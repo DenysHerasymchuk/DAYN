@@ -82,7 +82,7 @@ async def update_download_progress(
     reply_markup: Optional[InlineKeyboardMarkup] = None
 ) -> None:
     progress_bar = create_video_progress_bar(percent)
-    full_text = f"{status_text} {int(percent)}%\n{progress_bar}"
+    full_text = f"{status_text}\n{progress_bar}"
     await safe_edit_message(message, full_text, parse_mode="HTML", reply_markup=reply_markup)
 
 

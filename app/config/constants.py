@@ -2,8 +2,22 @@ class Timeouts:
     SESSION_EXPIRY_SECONDS = 86400
     SOCKET_TIMEOUT = 30
     DOWNLOAD_TIMEOUT = 300
-    PROGRESS_UPDATE_INTERVAL = 0.5
+    PROGRESS_UPDATE_INTERVAL = 0.3  # Seconds between progress checks
     PROGRESS_TASK_WAIT = 1.0
+    PROGRESS_CHANGE_THRESHOLD = 2  # Minimum % change to trigger update
+
+
+class TelegramConfig:
+    MEDIA_GROUP_BATCH_SIZE = 10  # Telegram's media group limit
+
+
+class HttpConfig:
+    # Chrome User-Agent (for YouTube, general use)
+    USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    # Firefox User-Agent (for services that block Chrome, like musicaldown)
+    USER_AGENT_FIREFOX = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
+    ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    ACCEPT_LANGUAGE = "en-US,en;q=0.5"
 
 
 class TelegramLimits:

@@ -3,14 +3,18 @@ import os
 import re
 from typing import Callable, List, Optional
 
+import aiofiles
 import aiohttp
+
+from app.config.constants import HttpConfig
 
 logger = logging.getLogger(__name__)
 
+# Firefox UA required - musicaldown blocks Chrome
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
+    'User-Agent': HttpConfig.USER_AGENT_FIREFOX,
+    'Accept': HttpConfig.ACCEPT,
+    'Accept-Language': HttpConfig.ACCEPT_LANGUAGE,
     'Connection': 'keep-alive',
 }
 
@@ -37,8 +41,10 @@ class TikTokPhotoDownloader:
             progress_callback: Optional callback(percent: float) for percentage progress
             photo_progress_callback: Optional callback(current: int, total: int) for photo count progress
         """
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
+
+        # Additional headers for form submission
+        form_headers = {
+            **HEADERS,
             'Content-Type': 'application/x-www-form-urlencoded',
             'Origin': 'https://musicaldown.com',
             'Referer': 'https://musicaldown.com/en?ref=more',
@@ -46,7 +52,7 @@ class TikTokPhotoDownloader:
 
         async with aiohttp.ClientSession() as session:
             # Get the page to extract tokens
-            async with session.get("https://musicaldown.com/en", headers=headers) as response:
+            async with session.get("https://musicaldown.com/en", headers=HEADERS) as response:
                 html = await response.text()
 
             # Extract tokens using regex
@@ -70,7 +76,7 @@ class TikTokPhotoDownloader:
             # Submit the form
             async with session.post(
                     'https://musicaldown.com/download',
-                    headers=headers,
+                    headers=form_headers,
                     data=data
             ) as response:
                 result_html = await response.text()
@@ -106,9 +112,15 @@ class TikTokPhotoDownloader:
                 async with session.get(photo_url, headers=HEADERS) as img_response:
                     if img_response.status == 200:
                         content = await img_response.read()
-                        with open(file_path, 'wb') as f:
-                            f.write(content)
+                        # Validate content before saving
+                        if len(content) < 100:  # Minimum valid image size
+                            logger.warning(f"Photo {current}/{total} too small, skipping")
+                            continue
+                        async with aiofiles.open(file_path, 'wb') as f:
+                            await f.write(content)
                         downloaded_files.append(file_path)
                         logger.debug(f"Downloaded photo {current}/{total}")
+                    else:
+                        logger.warning(f"Failed to download photo {current}/{total}: HTTP {img_response.status}")
 
             return downloaded_files
