@@ -6,11 +6,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Telegram-Bot-2CA5E0?logo=telegram&logoColor=white" alt="Telegram Bot">
-  <img src="https://img.shields.io/badge/YouTube-Downloader-FF0000?logo=youtube&logoColor=white" alt="YouTube">
-  <img src="https://img.shields.io/badge/TikTok-Downloader-000000?logo=tiktok&logoColor=white" alt="TikTok">
   <img src="https://img.shields.io/badge/Aiogram-3.x-blue?logo=telegram" alt="Aiogram">
   <img src="https://img.shields.io/badge/yt--dlp-2025+-orange" alt="yt-dlp">
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/MIT-License-green" alt="MIT License">
   <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white" alt="Prometheus">
   <img src="https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white" alt="Grafana">
@@ -39,15 +36,15 @@ cd DAYN
 ```
 
 ```bash
-#Create and activate virtual environment (Linux/macOS)
-python -m venv venv
-source venv/bin/activate
+# Create and activate virtual environment (Linux/macOS)
+python -m venv .venv
+source .venv/bin/activate
 ```
 
 ```bash
 # Create and activate virtual environment (Windows)
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
@@ -57,10 +54,9 @@ With your virtual environment active, install all required Python packages. Thes
 pip install -r requirements.txt
 ```
 ### 3. Configure Your Bot Token
-Create your bot through @BotFather on Telegram, then copy the token you receive. Create a .env file in the project root directory with your configuration. The .env.example file shows all available options.
+Create your bot through [@BotFather](https://t.me/BotFather) on Telegram, then copy the token you receive. Create a `.env` file in the project root directory with your configuration. The `.env.example` file shows all available options.
 
-```
-env
+```env
 BOT_TOKEN=your_actual_bot_token_here
 PREMIUM=false
 MAX_FILE_SIZE=52428800
@@ -71,14 +67,13 @@ LOG_LEVEL=INFO
 ### 4. Start Downloading
 Run the bot and send it a YouTube or TikTok link. For YouTube videos, you'll see quality options; for TikTok content, it downloads instantly with an audio extraction option.
 
-```
-bash
+```bash
 python run.py
 ```
 
 Keep your terminal running while using the bot. To stop it, press Ctrl+C in the terminal.
 
-## 🐳 Docker Deployment (Full Stack, preferable)
+## 🐳 Docker Deployment (Preferable)
 
 For production use or monitoring, DAYN includes a complete Docker Compose setup with observability tools:
 
@@ -94,6 +89,8 @@ This starts four services:
 
 The monitoring stack gives you real-time insights into download statistics, success rates, error patterns, and system performance—perfect for understanding how your bot is being used.
 
+---
+
 ## 🏗️ How DAYN Works (For Developers)
 
 DAYN is built with a modular architecture that separates concerns clearly. The entry point is `app/bot/main.py` which sets up the Aiogram dispatcher, logging, and metrics server. Here's how the flow works:
@@ -108,10 +105,10 @@ When a user sends a URL, validators in `app/bot/utils/validators.py` check if it
 
 ### 2. Downloader System
 The download logic is abstracted into platform-specific downloaders:
-- YouTube Downloader (app/downloader/youtube/): Uses yt-dlp to fetch video info, estimate sizes, and download content
-- TikTok Downloader (app/downloader/tiktok/): Combines yt-dlp for videos and musicaldown.com API for photo posts
+- YouTube Downloader (`app/downloader/youtube/`): Uses yt-dlp to fetch video info, estimate sizes, and download content
+- TikTok Downloader (`app/downloader/tiktok/`): Combines yt-dlp for videos and musicaldown.com API for photo posts
 
-Each downloader implements progress callbacks that update the user with visual progress bars. File size checking enforces the 50MB Telegram limit
+Each downloader implements progress callbacks that update the user with visual progress bars.
 
 ### 3. Core Services
 File Manager (`app/core/file_manager.py`): Handles all file operations including audio extraction (via FFmpeg), cleanup, and temporary storage management
@@ -137,16 +134,18 @@ The included Grafana dashboard (`monitoring/grafana/provisioning/dashboards/dayn
 
 ## ⚠️ Current Limitations & Known Issues
 
-Telegram's 50MB file upload limit for bots is the primary constraint. DAYN handles this by:
-- Filtering out YouTube qualities that would exceed the limit
-- Providing estimated file sizes before download
+### Limitations & Constraints
 
-Other known issues:
-- Some TikTok photo posts may fail audio extraction due to platform inconsistencies
-- YouTube metadata fetching can time out on slow connections (30-second timeout)
-- Concurrent downloads are limited by Telegram's rate limiting
+- Telegram enforces a 50 MB file upload limit for bots.
+DAYN solves this by filtering out YouTube formats that are likely to exceed this limit. This method is not fully reliable, as it depends on file size estimates provided by the **yt-dlp** library, which may be inaccurate in some cases.
 
-These issues are actively tracked and improvements are welcome via GitHub issues.
+- Telegram applies rate limits to bots in group chats. A bot can send 20 messages per minute in group. Exceeding this limit may result in temporary restrictions or 429 (Too Many Requests) errors. This limitation must be handled through message throttling, batching, or by editing existing messages instead of sending new ones
+
+### Other known issues:
+
+- There is a risk that making too many requests to the **MusicalDown API** for TikTok photo downloads may result in IP blocking or other temporary restrictions.
+
+These issues are actively tracked and improvements are welcome via [GitHub issues](https://github.com/DenysHerasymchuk/DAYN/issues).
 
 ## 💰 Supporting the Project
 DAYN is open source and free to use. If it saves you time or you find it valuable, consider supporting its development:
