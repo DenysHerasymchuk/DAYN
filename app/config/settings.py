@@ -27,6 +27,14 @@ class Settings:
     os.makedirs(TEMP_DIR, exist_ok=True)
     os.makedirs(LOGS_DIR, exist_ok=True)
 
+    # Web file server (large file fallback)
+    WEB_PORT = int(os.getenv("WEB_PORT", 8080))
+    WEB_BASE_URL = os.getenv("WEB_BASE_URL", "http://localhost:8080")
+    FILE_EXPIRY_SECONDS = int(os.getenv("FILE_EXPIRY_SECONDS", 1800))  # 30 minutes
+
+    # Download performance
+    CONCURRENT_FRAGMENT_DOWNLOADS = int(os.getenv("CONCURRENT_FRAGMENT_DOWNLOADS", 4))
+
     # Download settings
     MAX_DOWNLOAD_RETRIES = 3
     DOWNLOAD_TIMEOUT = 300  # 5 minutes

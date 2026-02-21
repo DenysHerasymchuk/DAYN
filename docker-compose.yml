@@ -9,9 +9,13 @@ services:
       - METRICS_PORT=8000
     ports:
       - "8000:8000"
+      - "8080:8080"
     volumes:
       - ./temp:/app/temp
       - ./logs:/app/logs
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     networks:
       - dayn-network
     depends_on:

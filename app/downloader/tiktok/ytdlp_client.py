@@ -8,6 +8,7 @@ import imageio_ffmpeg
 import yt_dlp
 
 from app.config.constants import HttpConfig
+from app.config.settings import settings
 from app.downloader.base import ProgressTracker
 
 logger = logging.getLogger(__name__)
@@ -52,12 +53,14 @@ class TikTokVideoDownloader:
             ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
             common_opts = {
+                'concurrent_fragment_downloads': settings.CONCURRENT_FRAGMENT_DOWNLOADS,
                 'http_headers': {
                     'User-Agent': HttpConfig.USER_AGENT,
                     'Accept': HttpConfig.ACCEPT,
                     'Accept-Language': HttpConfig.ACCEPT_LANGUAGE,
                 },
                 'socket_timeout': 30,
+                'nocheckcertificate': True,
                 'retries': 3,
                 'fragment_retries': 3,
                 'extractor_retries': 3
@@ -98,10 +101,10 @@ class TikTokVideoDownloader:
 
             def download_with_ydlp():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    video_id_from_info = info.get('id', 'tiktok')
-                    ydl.download([url])
-                    return video_id_from_info
+                    info = ydl.extract_info(url, download=True)
+                    if 'entries' in info:
+                        info = info['entries'][0]
+                    return info.get('id', 'tiktok')
 
             downloaded_id = await loop.run_in_executor(None, download_with_ydlp)
 

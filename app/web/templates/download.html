@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download &ndash; ${filename}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card">
+    ${player}
+    <h1>${filename}</h1>
+    <div class="meta">
+      <span>&#128190; ${size}</span>
+      <span>&#127910; ${content_label}</span>
+    </div>
+    <div class="buttons">
+      ${dl_btn}
+      ${audio_btn}
+    </div>
+    <p class="expiry">&#9200; Expires on <strong>${expires}</strong></p>
+  </div>
+</body>
+</html>

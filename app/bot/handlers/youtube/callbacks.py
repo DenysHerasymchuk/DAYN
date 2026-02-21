@@ -2,6 +2,7 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Optional
 
 import aiofiles.os
@@ -25,8 +26,9 @@ from app.bot.utils.metrics import (
     record_processing_time,
     record_request,
 )
-from app.config.constants import BYTES_PER_MB, CallbackData, Emojis, TelegramLimits
+from app.config.constants import BYTES_PER_MB, CallbackData, Emojis, Messages, TelegramLimits
 from app.config.settings import settings
+from app.web.file_registry import get_file_registry
 
 from . import youtube_dl
 
@@ -87,21 +89,39 @@ async def validate_session(callback: CallbackQuery, state: FSMContext) -> Option
 async def check_file_size(file_path: str, ctx: DownloadContext) -> Optional[float]:
     file_size = await aiofiles.os.path.getsize(file_path)
     file_size_mb = file_size / BYTES_PER_MB
-    max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
     if file_size > settings.MAX_FILE_SIZE:
         user_logger.log_user_error(
             ctx.handler_name,
             ctx.user_id,
-            f"File too large: {file_size_mb:.1f}MB (limit: {max_size_mb:.0f}MB)"
+            f"File too large ({file_size_mb:.1f} MB) — hosting via web link"
         )
-        await ctx.callback.message.edit_text(
-            f"{Emojis.CROSS} File too large ({file_size_mb:.1f} MB)\n{Emojis.SIZE} Limit: {max_size_mb:.0f} MB"
+
+        # Build a user-friendly filename from the video title
+        title = ctx.video_info.get('title', 'video')
+        safe_title = "".join(c for c in title if c.isalnum() or c in " _-").strip()[:50]
+        ext = Path(file_path).suffix or ".mp4"
+        if ctx.download_type == DownloadType.VIDEO:
+            display_name = f"{safe_title}_{ctx.quality}p{ext}"
+        else:
+            display_name = f"{safe_title}.mp3"
+
+        token = await get_file_registry().register(
+            file_path, display_name, file_size,
+            content_type=ctx.download_type.value,
+            expires_seconds=settings.FILE_EXPIRY_SECONDS,
         )
-        if await aiofiles.os.path.exists(file_path):
-            await aiofiles.os.remove(file_path)
+        url = f"{settings.WEB_BASE_URL}/download/{token}"
+
+        bot_me = await ctx.callback.bot.get_me()
+        bot_username = f"@{bot_me.username}" if bot_me.username else ""
+
+        await safe_edit_message(
+            ctx.callback.message,
+            Messages.web_link(file_size_mb, url, settings.FILE_EXPIRY_SECONDS, display_name, bot_username)
+        )
         await ctx.state.clear()
-        return None
+        return None  # file is now owned by the registry — do not delete it
 
     return file_size_mb
 

@@ -7,6 +7,7 @@ import imageio_ffmpeg
 import yt_dlp
 
 from app.config.constants import HttpConfig
+from app.config.settings import settings
 from app.downloader.base import ProgressTracker
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class YouTubeAudioDownloader:
             ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
             ydl_opts = {
-                'format': 'bestaudio/best',
+                'format': 'bestaudio[ext=m4a]/bestaudio',
                 'outtmpl': f'{self.temp_dir}/%(id)s_audio.%(ext)s',
                 'quiet': True,
                 'no_warnings': True,
@@ -38,13 +39,14 @@ class YouTubeAudioDownloader:
                     'preferredquality': '192',
                 }],
                 'progress_hooks': [tracker.hook],
-                'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+                'concurrent_fragment_downloads': settings.CONCURRENT_FRAGMENT_DOWNLOADS,
                 'http_headers': {
                     'User-Agent': HttpConfig.USER_AGENT,
                     'Accept': HttpConfig.ACCEPT,
                     'Accept-Language': HttpConfig.ACCEPT_LANGUAGE,
                 },
                 'socket_timeout': 30,
+                'nocheckcertificate': True,
                 'retries': 3,
                 'fragment_retries': 3,
                 'extractor_retries': 3
@@ -78,9 +80,9 @@ class YouTubeAudioDownloader:
             raise
 
     def _download_with_ydl(self, url: str, ydl_opts: dict) -> str:
-        """Helper to download synchronously and return video ID."""
+        """Download audio and return video ID."""
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            video_id = info.get('id', 'youtube')
-            ydl.download([url])
-            return video_id
+            info = ydl.extract_info(url, download=True)
+            if 'entries' in info:
+                info = info['entries'][0]
+            return info.get('id', 'youtube')

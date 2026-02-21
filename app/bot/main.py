@@ -11,6 +11,7 @@ from app.bot.handlers import router
 from app.bot.middlewares.throttling import ThrottlingMiddleware
 from app.bot.utils.metrics import set_bot_info, start_metrics_server
 from app.config.settings import settings
+from app.web.server import start_file_server
 
 
 # Custom formatter to include user_id when available
@@ -56,6 +57,10 @@ async def main():
     metrics_port = int(os.getenv('METRICS_PORT', 8000))
     start_metrics_server(metrics_port)
     set_bot_info(version="1.0.0", environment=os.getenv('ENVIRONMENT', 'development'))
+
+    # Start web file server (large file fallback)
+    await start_file_server(settings.WEB_PORT)
+    logger.info(f"File server available at {settings.WEB_BASE_URL}")
 
     # Create bot
     bot = Bot(

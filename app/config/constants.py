@@ -87,6 +87,7 @@ class Emojis:
     HELP = "📋"
     LIGHT = "💡"
     UPLOAD = "📤"
+    LINK = "🔗"
 
 
 class Messages:
@@ -121,3 +122,23 @@ class Messages:
         "• https://www.youtube.com/watch?v=...\n"
         "• https://www.tiktok.com/@.../video/..."
     )
+
+    @staticmethod
+    def web_link(file_size_mb: float, url: str, expires_seconds: int,
+                 display_name: str = "", bot_username: str = "") -> str:
+        """Message sent when a file exceeds the Telegram size limit."""
+        if expires_seconds < 3600:
+            amount = expires_seconds // 60
+            label = f"{amount} minute{'s' if amount != 1 else ''}"
+        else:
+            amount = expires_seconds // 3600
+            label = f"{amount} hour{'s' if amount != 1 else ''}"
+        link_text = f'<a href="{url}">{display_name}</a>' if display_name else url
+        via = f"\n\nDownloaded via:\n{bot_username}" if bot_username else ""
+        return (
+            f"<b>File too large for Telegram ({file_size_mb:.1f} MB)</b>\n\n"
+            f"Your file is ready to download.\n"
+            f"{Emojis.LINK} Link: {link_text}\n\n"
+            f"⏰ Link expires in {label}"
+            f"{via}"
+        )

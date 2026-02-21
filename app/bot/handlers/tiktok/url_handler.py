@@ -1,5 +1,6 @@
 import logging
 import time
+from pathlib import Path
 
 import aiofiles.os
 from aiogram import Router
@@ -23,9 +24,10 @@ from app.bot.utils.metrics import (
     record_request,
 )
 from app.bot.utils.validators import is_tiktok_url
-from app.config.constants import BYTES_PER_MB, Emojis
+from app.config.constants import BYTES_PER_MB, Emojis, Messages
 from app.config.settings import settings
 from app.core.file_manager import file_manager
+from app.web.file_registry import get_file_registry
 
 from ..common.cancel import is_cancelled
 from . import tiktok_dl
@@ -80,26 +82,45 @@ async def calculate_content_size(content) -> int:
         return 0
 
 
-async def check_video_size(file_path: str, user_id: int, status_msg: Message) -> float | None:
-    """Check if video file size is within limits. Returns size_mb if OK, None if too large."""
+async def check_video_size(
+    file_path: str,
+    user_id: int,
+    status_msg: Message,
+    video_info: dict | None = None,
+) -> float | None:
+    """Check if video file size is within Telegram limits.
+    Returns size_mb if within limits, None if too large (file registered for web download)."""
     file_size = await aiofiles.os.path.getsize(file_path)
     file_size_mb = file_size / BYTES_PER_MB
-    max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
 
     if file_size > settings.MAX_FILE_SIZE:
         user_logger.log_user_error(
             HANDLER_NAME,
             user_id,
-            f"File too large: {file_size_mb:.1f}MB (limit: {max_size_mb:.0f}MB)"
+            f"File too large ({file_size_mb:.1f} MB) — hosting via web link"
         )
+
+        # Build a user-friendly display filename
+        author = (video_info or {}).get('author', 'tiktok')
+        safe_author = "".join(c for c in author if c.isalnum() or c in "_-").strip()[:30]
+        ext = Path(file_path).suffix or ".mp4"
+        display_name = f"tiktok_{safe_author}{ext}"
+
+        token = await get_file_registry().register(
+            file_path, display_name, file_size,
+            content_type="video",
+            expires_seconds=settings.FILE_EXPIRY_SECONDS,
+        )
+        url = f"{settings.WEB_BASE_URL}/download/{token}"
+
+        bot_me = await status_msg.bot.get_me()
+        bot_username = f"@{bot_me.username}" if bot_me.username else ""
+
         await safe_edit_message(
             status_msg,
-            f"{Emojis.CROSS} Video too large ({file_size_mb:.1f} MB)\n"
-            f"{Emojis.SIZE} Limit: {max_size_mb:.0f} MB"
+            Messages.web_link(file_size_mb, url, settings.FILE_EXPIRY_SECONDS, display_name, bot_username)
         )
-        if await aiofiles.os.path.exists(file_path):
-            await aiofiles.os.remove(file_path)
-        return None
+        return None  # file is now owned by the registry — do not delete it
 
     return file_size_mb
 
@@ -171,11 +192,13 @@ async def handle_video_content(
     bot_username: str,
     state: FSMContext,
     user_id: int,
-    status_msg: Message
+    status_msg: Message,
+    video_info: dict | None = None,
 ) -> bool:
     """Handle TikTok video content. Returns True if successful."""
-    file_size_mb = await check_video_size(file_path, user_id, status_msg)
+    file_size_mb = await check_video_size(file_path, user_id, status_msg, video_info)
     if file_size_mb is None:
+        await state.clear()
         return False
 
     await safe_edit_message(status_msg, f"{Emojis.UPLOAD} Sending video...")
@@ -224,29 +247,6 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             "TikTok info retrieved",
             f"User: @{username} | Type: {content_type}"
         )
-
-        # Pre-check estimated size for videos (not photos)
-        if content_type != 'photo':
-            estimated_size = video_info.get('estimated_size', 0)
-            if estimated_size > settings.MAX_FILE_SIZE:
-                estimated_mb = estimated_size / BYTES_PER_MB
-                max_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
-                is_estimated = video_info.get('size_is_estimated', True)
-
-                user_logger.log_user_error(
-                    HANDLER_NAME,
-                    user_id,
-                    f"Video too large (pre-check): ~{estimated_mb:.1f}MB"
-                )
-
-                estimate_note = " (estimated)" if is_estimated else ""
-                await safe_edit_message(
-                    status_msg,
-                    f"{Emojis.CROSS} Video too large{estimate_note}: ~{estimated_mb:.1f} MB\n"
-                    f"{Emojis.SIZE} Limit: {max_mb:.0f} MB"
-                )
-                await state.clear()
-                return
 
         await state.update_data(video_info=video_info)
         await state.set_state(TikTokState.selecting_format)
@@ -308,7 +308,7 @@ async def tiktok_url_handler(message: Message, state: FSMContext):
             )
         else:
             success = await handle_video_content(
-                message, content, author_link, bot_username, state, user_id, status_msg
+                message, content, author_link, bot_username, state, user_id, status_msg, video_info
             )
             if not success:
                 return

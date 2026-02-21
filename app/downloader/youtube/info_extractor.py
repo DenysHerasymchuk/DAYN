@@ -79,7 +79,7 @@ class YouTubeInfoExtractor:
             # Get duration for estimation
             duration = info.get('duration', 0)
 
-            # Calculate sizes for all qualities
+            # Calculate sizes for all qualities (no size filtering — all shown)
             qualities_with_size = []
 
             for height, size_info in quality_info.items():
@@ -90,16 +90,14 @@ class YouTubeInfoExtractor:
                 if video_size is None:
                     estimated_video_size = self._estimate_file_size(height, duration)
                     total_size = estimated_video_size + audio_size
-
-                    if total_size < self.max_file_size:
-                        size_mb = total_size / (1024 * 1024)
-                        qualities_with_size.append((height, total_size, f"~{size_mb:.1f} MB", True))
+                    size_mb = total_size / (1024 * 1024)
+                    exceeds_limit = total_size > self.max_file_size
+                    qualities_with_size.append((height, total_size, f"~{size_mb:.1f} MB", True, exceeds_limit))
                 else:
                     total_size = video_size + audio_size
-
-                    if total_size < self.max_file_size:
-                        size_mb = total_size / (1024 * 1024)
-                        qualities_with_size.append((height, total_size, f"{size_mb:.1f} MB", False))
+                    size_mb = total_size / (1024 * 1024)
+                    exceeds_limit = total_size > self.max_file_size
+                    qualities_with_size.append((height, total_size, f"{size_mb:.1f} MB", False, exceeds_limit))
 
             # Sort by quality (high to low)
             qualities_with_size.sort(key=lambda x: x[0], reverse=True)
@@ -107,18 +105,18 @@ class YouTubeInfoExtractor:
             # Calculate audio-only size
             audio_only_size = best_audio_size
             audio_only_size_mb = audio_only_size / (1024 * 1024)
-            audio_under_limit = audio_only_size < self.max_file_size
+            audio_exceeds_limit = audio_only_size > self.max_file_size
 
-            logger.info(f"Max {self.max_file_size / (1024 * 1024):.0f}MB: {len(qualities_with_size)} qualities available")
+            logger.info(f"Found {len(qualities_with_size)} qualities (limit {self.max_file_size / (1024 * 1024):.0f}MB)")
 
             return {
                 'title': info.get('title', 'YouTube Video')[:100],
                 'author': info.get('uploader', 'Unknown'),
                 'duration': self._format_duration(info.get('duration', 0)),
-                'qualities_with_size': qualities_with_size,  # [(height, size_bytes, size_str, estimated)]
+                'qualities_with_size': qualities_with_size,  # [(height, size_bytes, size_str, estimated, exceeds_limit)]
                 'audio_size': audio_only_size,
                 'audio_size_str': f"{audio_only_size_mb:.1f} MB",
-                'audio_under_limit': audio_under_limit,
+                'audio_exceeds_limit': audio_exceeds_limit,
                 'video_id': info.get('id', 'unknown'),
                 'thumbnail': info.get('thumbnail', None)
             }

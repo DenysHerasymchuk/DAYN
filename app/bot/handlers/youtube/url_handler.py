@@ -115,24 +115,21 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             return
 
         qualities_with_size = video_info.get('qualities_with_size', [])
-        audio_under_limit = video_info.get('audio_under_limit', False)
+        audio_exceeds_limit = video_info.get('audio_exceeds_limit', False)
 
-        if not qualities_with_size and not audio_under_limit:
-            max_size_mb = settings.MAX_FILE_SIZE / BYTES_PER_MB
-
+        if not qualities_with_size:
             user_logger.log_user_action(
                 HANDLER_NAME,
                 user_id,
-                "No suitable formats available",
-                f"Title: {video_info.get('title', 'Unknown')[:50]} | Limit: {max_size_mb:.0f}MB"
+                "No formats available",
+                f"Title: {video_info.get('title', 'Unknown')[:50]}"
             )
-
             await safe_edit_message(
                 status_msg,
                 f"{Emojis.CROSS} <b>Unable to download</b>\n\n"
                 f"{Emojis.VIDEO} {video_info['title']}\n"
                 f"{Emojis.CLOCK} Duration: {video_info['duration']}\n\n"
-                f"All formats exceed {max_size_mb:.0f} MB limit."
+                "No downloadable formats found for this video."
             )
             await state.clear()
             return
@@ -143,8 +140,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
             "YouTube info retrieved",
             f"Title: {video_info.get('title', 'Unknown')[:50]} | "
             f"Author: {video_info.get('author', 'Unknown')[:30]} | "
-            f"Qualities: {len(qualities_with_size)} | "
-            f"Audio available: {audio_under_limit}"
+            f"Qualities: {len(qualities_with_size)}"
         )
 
         thumbnail = video_info.get('thumbnail')
@@ -152,7 +148,7 @@ async def youtube_url_handler(message: Message, state: FSMContext):
 
         keyboard = get_quality_keyboard_with_sizes(
             qualities_with_size,
-            audio_under_limit,
+            audio_exceeds_limit,
             video_info.get('audio_size_str')
         )
 
