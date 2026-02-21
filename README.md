@@ -1,20 +1,17 @@
 
 <p align="center">
-  <img src="src/icon.png" width="300" />
+  <img src="./src/icon.png" width="300" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Telegram-Bot-2CA5E0?logo=telegram&logoColor=white" alt="Telegram Bot">
-  <img src="https://img.shields.io/badge/YouTube-Downloader-FF0000?logo=youtube&logoColor=white" alt="YouTube">
-  <img src="https://img.shields.io/badge/TikTok-Downloader-000000?logo=tiktok&logoColor=white" alt="TikTok">
   <img src="https://img.shields.io/badge/Aiogram-3.x-blue?logo=telegram" alt="Aiogram">
   <img src="https://img.shields.io/badge/yt--dlp-2025+-orange" alt="yt-dlp">
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/MIT-License-green" alt="MIT License">
   <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white" alt="Prometheus">
   <img src="https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white" alt="Grafana">
-  <img src="https://img.shields.io/badge/FFmpeg-Included-007808?logo=ffmpeg&logoColor=white" alt="FFmpeg">
 </p>
 
 <p align="center">
@@ -39,7 +36,7 @@ cd DAYN
 ```
 
 ```bash
-#Create and activate virtual environment (Linux/macOS)
+# Create and activate virtual environment (Linux/macOS)
 python -m venv venv
 source venv/bin/activate
 ```
@@ -59,26 +56,26 @@ pip install -r requirements.txt
 ### 3. Configure Your Bot Token
 Create your bot through @BotFather on Telegram, then copy the token you receive. Create a .env file in the project root directory with your configuration. The .env.example file shows all available options.
 
-```
-env
-BOT_TOKEN=your_actual_bot_token_here
-PREMIUM=false
+```env
+BOT_TOKEN=your_telegram_bot_token_here
 MAX_FILE_SIZE=52428800
 TEMP_DIR=temp
 LOG_LEVEL=INFO
+LOGS_DIR=logs
+
+# Monitoring
+METRICS_PORT=8000
+ENVIRONMENT=development
 ```
 
 ### 4. Start Downloading
 Run the bot and send it a YouTube or TikTok link. For YouTube videos, you'll see quality options; for TikTok content, it downloads instantly with an audio extraction option.
 
-```
-bash
+```bash
 python run.py
 ```
 
-Keep your terminal running while using the bot. To stop it, press Ctrl+C in the terminal.
-
-## 🐳 Docker Deployment (Full Stack, preferable)
+## 🐳 Docker Deployment (Preferable)
 
 For production use or monitoring, DAYN includes a complete Docker Compose setup with observability tools:
 
@@ -89,7 +86,7 @@ docker-compose up -d
 This starts four services:
 - Bot Service: The Telegram bot itself, exposing metrics on port `8000`
 - Prometheus: Time-series database collecting metrics on port `9090`
-- Grafana: Beautiful dashboards on port `3000` (login: `admin/admin`)
+- Grafana: Dashboards on port `3000` (login: `admin/admin`)
 - Node Exporter: System-level metrics on port `9100`
 
 The monitoring stack gives you real-time insights into download statistics, success rates, error patterns, and system performance—perfect for understanding how your bot is being used.
