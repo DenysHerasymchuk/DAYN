@@ -18,12 +18,12 @@
 <h1 align="center">DAYN - Download All Your Needs</h1>
 
 
-DAYN is a smart Telegram bot that makes downloading content from YouTube and TikTok as simple as sending a link. It handles both videos and audio, supports quality selection, and works entirely within Telegram - no external apps or websites needed. Whether you want to save a tutorial, download music, or keep a favorite clip, DAYN delivers files directly to your chat with real-time progress updates and automatic cleanup.
+DAYN is a smart Telegram bot that makes downloading content from YouTube and TikTok as simple as sending a link. It handles both videos and audio, supports quality selection, and automatically handles files of any size. Whether you want to save a tutorial, download music, or keep a favorite clip, DAYN delivers files directly to your chat with real-time progress updates and automatic cleanup.
 
 ## 🚀 What it Does
-DAYN supports two major platforms with distinct features. For YouTube, you can choose from multiple video qualities or extract just the audio as an MP3 file. TikTok downloads include videos, photo slideshows, and audio extraction from clips. The bot shows a visual progress bar while downloading, so you always know what's happening. After sending your file, temporary files are automatically cleaned up to save space.
+DAYN supports two major platforms with distinct features. For YouTube, you can choose from any available video quality or extract just the audio as an MP3 file. TikTok downloads include videos, photo slideshows, and audio extraction from clips. The bot shows a visual progress bar while downloading, so you always know what's happening. After sending your file, temporary files are automatically cleaned up to save space.
 
-Important note on file sizes: Telegram Bot API currently limits file uploads to 50MB for all bot accounts. This is a platform restriction, not a DAYN limitation. [You can read more in Telegram's official FAQ.](https://core.telegram.org/bots/faq#how-do-i-upload-a-large-file) 
+**File size handling:** Telegram Bot API limits bot uploads to 50 MB — a known platform restriction [documented in Telegram's official FAQ](https://core.telegram.org/bots/faq#how-do-i-upload-a-large-file). DAYN solves this by automatically hosting oversized files on its built-in web server and sending you a private download link instead. The link is valid for a configurable period (default 30 minutes) and the file is deleted afterward. Large YouTube qualities are marked with 🔗 in the quality picker to indicate they will be delivered via link.
 
 
 ## 📦 Quick Start for Users
@@ -66,7 +66,17 @@ LOGS_DIR=logs
 # Monitoring
 METRICS_PORT=8000
 ENVIRONMENT=development
+
+# Web file server (large file fallback)
+WEB_PORT=8080
+WEB_BASE_URL=http://your-domain.com:8080
+FILE_EXPIRY_SECONDS=1800
+
+# Download performance (parallel DASH fragment downloads, 1-16)
+CONCURRENT_FRAGMENT_DOWNLOADS=4
 ```
+
+`WEB_BASE_URL` must be set to a publicly reachable address so that the download links sent to users actually work. For local testing, use your machine's LAN IP (e.g. `http://192.168.0.x:8080`).
 
 ### 4. Start Downloading
 Run the bot and send it a YouTube or TikTok link. For YouTube videos, you'll see quality options; for TikTok content, it downloads instantly with an audio extraction option.
@@ -84,12 +94,14 @@ docker-compose up -d
 ```
 
 This starts four services:
-- Bot Service: The Telegram bot itself, exposing metrics on port `8000`
-- Prometheus: Time-series database collecting metrics on port `9090`
-- Grafana: Dashboards on port `3000` (login: `admin/admin`)
-- Node Exporter: System-level metrics on port `9100`
+- **Bot Service**: The Telegram bot itself, exposing metrics on port `8000` and the web file server on port `8080`
+- **Prometheus**: Time-series database collecting metrics on port `9090`
+- **Grafana**: Dashboards on port `3000` (login: `admin/admin`)
+- **Node Exporter**: System-level metrics on port `9100`
 
 The monitoring stack gives you real-time insights into download statistics, success rates, error patterns, and system performance—perfect for understanding how your bot is being used.
+
+> Make sure port `8080` is accessible from the internet (or your LAN) and that `WEB_BASE_URL` in your `.env` points to it, so download links sent to Telegram users are reachable.
 
 ## 🏗️ How DAYN Works (For Developers)
 
@@ -105,17 +117,25 @@ When a user sends a URL, validators in `app/bot/utils/validators.py` check if it
 
 ### 2. Downloader System
 The download logic is abstracted into platform-specific downloaders:
-- YouTube Downloader (app/downloader/youtube/): Uses yt-dlp to fetch video info, estimate sizes, and download content
-- TikTok Downloader (app/downloader/tiktok/): Combines yt-dlp for videos and musicaldown.com API for photo posts
+- **YouTube Downloader** (`app/downloader/youtube/`): Uses yt-dlp to fetch video info, list all available qualities, and download content. All qualities are shown — large ones are flagged with 🔗 to indicate web delivery.
+- **TikTok Downloader** (`app/downloader/tiktok/`): Combines yt-dlp for videos and musicaldown.com API for photo posts.
 
-Each downloader implements progress callbacks that update the user with visual progress bars. File size checking enforces the 50MB Telegram limit
+Each downloader implements progress callbacks that update the user with visual progress bars. After download, the actual file size is checked. Files within Telegram's 50 MB limit are sent directly; larger files are handed off to the web server.
 
-### 3. Core Services
-File Manager (`app/core/file_manager.py`): Handles all file operations including audio extraction (via FFmpeg), cleanup, and temporary storage management
+### 3. Web File Server
+`app/web/` is a self-contained aiohttp web server that handles large file delivery:
 
-Metrics (`app/bot/utils/metrics.py`): Prometheus integration tracking downloads, errors, processing times, and file sizes
+- **`file_registry.py`**: Token-based registry tracking hosted files. Each entry carries a UUID token, file path, size, content type, expiry time, and a `consumed` flag. Files are deleted automatically after download or when the link expires.
+- **`server.py`**: Four routes — `/download/{token}` (HTML page), `/preview/{token}` (range-request streaming for in-browser playback), `/files/{token}` (one-time download that deletes the file after transfer), `/health`.
+- **`templates/`**: HTML pages (`download.html`, `consumed.html`, `expired.html`) loaded once at startup using Python's `string.Template`.
+- **`static/`**: `style.css` served by aiohttp's static handler and cached by browsers.
 
-User Logger: Structured logging with user context for debugging and analytics
+### 4. Core Services
+**File Manager** (`app/core/file_manager.py`): Handles all file operations including audio extraction (via FFmpeg), cleanup, and temporary storage management.
+
+**Metrics** (`app/bot/utils/metrics.py`): Prometheus integration tracking downloads, errors, processing times, and file sizes.
+
+**User Logger**: Structured logging with user context for debugging and analytics.
 
 ### 4. State Management
 The bot uses Aiogram's FSM (Finite State Machine) to track user sessions. For YouTube, it remembers quality selections; for TikTok, it maintains context for audio extraction. States automatically expire after 24 hours to prevent stale data.
@@ -134,14 +154,13 @@ The included Grafana dashboard (`monitoring/grafana/provisioning/dashboards/dayn
 
 ## ⚠️ Current Limitations & Known Issues
 
-Telegram's 50MB file upload limit for bots is the primary constraint. DAYN handles this by:
-- Filtering out YouTube qualities that would exceed the limit
-- Providing estimated file sizes before download
+Telegram's 50 MB upload limit for bots is handled automatically — files above the limit are hosted on DAYN's built-in web server and a private download link is sent instead. The link expires after `FILE_EXPIRY_SECONDS` (default 30 minutes) and the file is deleted.
 
 Other known issues:
+- Download links require `WEB_BASE_URL` to point to a publicly reachable address; links will not work if it is set to `localhost`
 - Some TikTok photo posts may fail audio extraction due to platform inconsistencies
 - YouTube metadata fetching can time out on slow connections (30-second timeout)
-- Concurrent downloads are limited by Telegram's rate limiting
+- Concurrent requests per user are throttled to **1 per second** by `ThrottlingMiddleware` (`app/bot/middlewares/throttling.py`). This prevents abuse but means rapid button presses (e.g. quickly re-selecting quality) will be silently dropped with a "Please wait..." notice
 
 These issues are actively tracked and improvements are welcome via GitHub issues.
 
