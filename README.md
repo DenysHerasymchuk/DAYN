@@ -14,9 +14,9 @@
   <img src="https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white" alt="Grafana">
 </p>
 
-<p align="center">
-  <h1 align="center">DAYN - Download All Your Needs</h1>
-</p>
+
+<h1 align="center">DAYN - Download All Your Needs</h1>
+
 
 DAYN is a smart Telegram bot that makes downloading content from YouTube and TikTok as simple as sending a link. It handles both videos and audio, supports quality selection, and works entirely within Telegram - no external apps or websites needed. Whether you want to save a tutorial, download music, or keep a favorite clip, DAYN delivers files directly to your chat with real-time progress updates and automatic cleanup.
 
